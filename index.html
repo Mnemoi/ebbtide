@@ -414,7 +414,7 @@ function nearestFree(blk, x, z) {
 }
 
 // ---------- Agents, densité, cadavres, marques ----------
-const pos = new Float32Array(MAX * 2), spd = new Float32Array(MAX);
+const pos = new Float32Array(MAX * 2), spd = new Float32Array(MAX), hd = new Float32Array(MAX), ty = new Float32Array(MAX); let DCAUSE = 0;
 const nearList = new Int32Array(300000);
 let nearCount = 0, N = 0, frameNo = 0;
 let densR = new Uint32Array(DG * DG), densW = new Uint32Array(DG * DG);
@@ -451,10 +451,11 @@ function killAgent(i) {
   const x = pos[2 * i], z = pos[2 * i + 1];
   addCorpse(x, z);
   if ((S.kills & 3) === 0) paint(x, z, 1.7, 0, 85);
-  N--; pos[2 * i] = pos[2 * N]; pos[2 * i + 1] = pos[2 * N + 1]; spd[i] = spd[N];
+  deadPush(x, z, hd[i], i); N--; pos[2 * i] = pos[2 * N]; pos[2 * i + 1] = pos[2 * N + 1]; spd[i] = spd[N]; hd[i] = hd[N]; ty[i] = ty[N];
   S.kills++;
 }
-function killRadius(x, z, r) {
+function killRadius(x, z, r) { DCAUSE = 1; try { return killRadius0(x, z, r); } finally { DCAUSE = 0; } }
+function killRadius0(x, z, r) {
   const rr = r * r; let k = 0; const KP = KILLP();
   for (let i = 0; i < N;) {
     const dx = pos[2 * i] - x, dz = pos[2 * i + 1] - z;
@@ -490,7 +491,7 @@ function spawnRing(k, sides) {
       x = Math.max(-HALF + 3, Math.min(HALF - 3, x)); z = Math.max(-HALF + 3, Math.min(HALF - 3, z));
       ok = !blocked[(((z + HALF) / CELL) | 0) * G + (((x + HALF) / CELL) | 0)];
     }
-    pos[2 * i] = x; pos[2 * i + 1] = z; spd[i] = 5 + rnd() * 5;
+    pos[2 * i] = x; pos[2 * i + 1] = z; spd[i] = 5 + rnd() * 5; ty[i] = hordeType(); hd[i] = Math.atan2(-x, -z);
   }
   N += k;
 }
@@ -543,7 +544,7 @@ function step(dt, n) {
     } else {
       if (!blocked[cz * G + ncx]) ox = nx; else if (!blocked[ncz * G + cx]) oz = nz;
     }
-    pos[2 * i] = ox; pos[2 * i + 1] = oz;
+    pos[2 * i] = ox; pos[2 * i + 1] = oz; if (vx * vx + vz * vz > .04) hd[i] = Math.atan2(vx, vz);
     if (!far) {
       let ex = ((ox + HALF) * invD) | 0, ez = ((oz + HALF) * invD) | 0;
       if (ex < 0) ex = 0; else if (ex >= DG) ex = DG - 1;
@@ -1056,6 +1057,7 @@ function render(t) {
   // horde
   gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, pos, 0, N * 2);
   const sc = Math.max(1, cam.dist / 520);
+  if (hordeDraw(t, common)) return;
   common(LZ, pZomb);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, corpseTex); gl.uniform1i(LZ.uCorpse, 0);
   gl.uniform1f(LZ.uFac, LEVEL.n); gl.uniform3f(LZ.uRight, right[0], 0, right[2]); gl.uniform2f(LZ.uSize, 1.15 * sc, 1.95 * sc);
@@ -1906,7 +1908,7 @@ addEventListener('mouseup', () => { mmDrag = false; });
 function resetGame() {
   LEVEL.n = 0; loadLevel(); $('lvl').style.display = 'none';
   resetWalls(); corpse.fill(0); densR.fill(0); densW.fill(0); marks.fill(0); mkMin = 0; mkMax = MK - 1; mkForce = true; S.corpseDirty = true;
-  S.kills = 0; S.breaches = 0; S.maxPile = 0; S.time = 0; N = 0; seed = 4242;
+  S.kills = 0; S.breaches = 0; S.maxPile = 0; S.time = 0; N = 0; seed = 4242; deadCount = 0; deadHead = 0; deadDirty = true;
   units.length = 0; decoys.length = 0; timers.length = 0; parts.length = 0; tracers.length = 0; rings.length = 0; cnt = { DZ: 1, TK: 2, SQ: 82, CQ: 1, LF: 1, JD: 1 };
   res.sp = 260; res.hq = 1000; for (const k of abAll) cds[k] = 0; armed = null; mines.length = 0;
   Object.assign(WV, { i: 0, phase: 'prep', t: 40, left: 0, acc: 0 }); G_.over = null; $('end').style.display = 'none';
@@ -2535,11 +2537,33 @@ function rdShoot(src, tgt, dmg, acc, kind, wp) {
   if (!hit && Math.random() < .55) sfx.ricochet(rdPanOf(ex));
   src.fl = .07; if (src.k !== 'e') rdNoise(src.x, src.y, 24);
   if (hit) {
-    if (tgt.k === 'e') { tgt.hp -= rdEnemyDmg(tgt, src, dmg, wp); tgt.hit = .12; sfx.hit(rdPanOf(tgt.x)); rdSplat(tgt.x, tgt.y, 3, false); if (tgt.st === 'idle' || tgt.st === 'stun') { /* reste */ } if (tgt.st === 'idle') { tgt.st = 'combat'; RD.alarm = true; } if (tgt.hp <= 0) rdKill(tgt, a); }
+    if (tgt.k === 'e') { tgt.hp -= rdEnemyDmg(tgt, src, dmg, wp); tgt.hit = .12; tgt.kc = wp === 'emp' ? 'emp' : wp === 'plasma' ? 'burn' : (wp === 'rail' || wp === 'shotgun') ? 'gore' : 'bullet'; tgt.ka = a; sfx.hit(rdPanOf(tgt.x)); rdSplat(tgt.x, tgt.y, 3, false); if (tgt.st === 'idle' || tgt.st === 'stun') { /* reste */ } if (tgt.st === 'idle') { tgt.st = 'combat'; RD.alarm = true; } if (tgt.hp <= 0) rdKill(tgt, a); }
     else { const k = [.5, 1, 1.35, 1.8][ACC.diff]; tgt.hp -= dmg * k; rdSplat(tgt.x, tgt.y, 2, false); if (tgt.k === 'j') { RD.hurt = .4; RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 5); sfx.hurt(); } if (tgt.hp <= 0) rdDown(tgt, a); }
   }
 }
-function rdKill(e, a) { e.st = 'dead'; e.da = a + (Math.random() - .5); RD.kills++; rdSplat(e.x, e.y, 14, true); rdFloat(e.x, e.y - 1, '+20', '#f4c04a'); sfx.kill(rdPanOf(e.x)); RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 3); rdCheck(); }
+function rdMark(e, kc, a) {
+  const c = RD.bc, T = EN[e.t] || {}, mach = !!(T.mach || T.cyber), x = e.x * TS, y = e.y * TS, R = Math.random;
+  const pool = (cx, cy, rx, ry, rot, rgb, al) => { const g = c.createRadialGradient(cx, cy, 0, cx, cy, rx); g.addColorStop(0, `rgba(${rgb},${al})`); g.addColorStop(.7, `rgba(${rgb},${al * .8})`); g.addColorStop(1, `rgba(${rgb},0)`); c.save(); c.translate(cx, cy); c.rotate(rot); c.scale(1, ry / rx); c.translate(-cx, -cy); c.fillStyle = g; c.beginPath(); c.arc(cx, cy, rx, 0, 6.283); c.fill(); c.restore(); };
+  const spray = (n, len, rgb, w) => { for (let i = 0; i < n; i++) { const aa = a + (R() - .5) * 1.1, d0 = TS * (.4 + R() * .5), d1 = d0 + TS * len * (.4 + R()); c.strokeStyle = `rgba(${rgb},${.4 + R() * .4})`; c.lineWidth = w * (.5 + R()); c.lineCap = 'round'; c.beginPath(); c.moveTo(x + Math.cos(aa) * d0, y + Math.sin(aa) * d0); c.lineTo(x + Math.cos(aa) * d1, y + Math.sin(aa) * d1); c.stroke(); c.fillStyle = `rgba(${rgb},.75)`; c.beginPath(); c.arc(x + Math.cos(aa) * d1, y + Math.sin(aa) * d1, w * .7 * (.5 + R()), 0, 6.283); c.fill(); } };
+  if (kc === 'boom' || kc === 'burn') {
+    pool(x, y, TS * (kc === 'boom' ? 2.2 : 1.7), TS * (kc === 'boom' ? 1.9 : 1.5), R() * 3, '8,6,5', .78);
+    pool(x, y, TS * .9, TS * .8, 0, '0,0,0', .6);
+    for (let i = 0; i < 16; i++) { const aa = R() * 6.28, d = TS * (.6 + R() * 1.8); c.fillStyle = R() < .3 ? 'rgba(255,150,40,.7)' : 'rgba(30,26,24,.7)'; c.fillRect(x + Math.cos(aa) * d, y + Math.sin(aa) * d, 2, 2); }
+    if (kc === 'boom') spray(9, 2.2, '20,16,14', 1.6);
+  } else if (kc === 'emp') {
+    pool(x, y, TS * 1.5, TS * 1.3, 0, '10,16,30', .7); c.strokeStyle = 'rgba(120,200,255,.75)'; c.lineWidth = 1.2;
+    for (let i = 0; i < 7; i++) { let px = x, py = y, aa = R() * 6.28; c.beginPath(); c.moveTo(px, py); for (let q = 0; q < 5; q++) { aa += (R() - .5) * 1.6; px += Math.cos(aa) * TS * .45; py += Math.sin(aa) * TS * .45; c.lineTo(px, py); } c.stroke(); }
+  } else if (mach) {
+    pool(x, y, TS * 1.6, TS * 1.2, R() * 3, '8,8,10', .85); spray(7, 1.6, '12,12,14', 2);
+    for (let i = 0; i < 12; i++) { const aa = R() * 6.28, d = TS * (.5 + R() * 1.4); c.fillStyle = R() < .5 ? 'rgba(255,200,80,.8)' : 'rgba(130,200,255,.8)'; c.fillRect(x + Math.cos(aa) * d, y + Math.sin(aa) * d, 1.6, 1.6); }
+  } else {
+    const big = kc === 'gore' ? 1.5 : 1;
+    pool(x + Math.cos(a) * TS * .3, y + Math.sin(a) * TS * .3, TS * 1.5 * big, TS * 1.1 * big, a, '88,5,5', .92); pool(x, y, TS * .8, TS * .7, 0, '58,2,3', .85);
+    spray(kc === 'gore' ? 14 : 8, 2.4 * big, '104,8,8', 2.4);
+    c.strokeStyle = 'rgba(80,5,5,.7)'; c.lineWidth = TS * .42; c.lineCap = 'round'; c.beginPath(); c.moveTo(x - Math.cos(a) * TS * .2, y - Math.sin(a) * TS * .2); c.lineTo(x - Math.cos(a) * TS * 1.5, y - Math.sin(a) * TS * 1.5); c.stroke();
+  }
+}
+function rdKill(e, a) { e.st = 'dead'; e.da = a + (Math.random() - .5); if (!e.kc) e.kc = (e.burn > 0 || e.afterburn > 0) ? 'burn' : 'bullet'; RD.kills++; rdSplat(e.x, e.y, 14, true); rdMark(e, e.kc, e.ka != null ? e.ka : a); rdFloat(e.x, e.y - 1, '+20', '#f4c04a'); sfx.kill(rdPanOf(e.x)); RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 3); rdCheck(); }
 function rdDown(f, a) {
   rdSplat(f.x, f.y, 14, true);
   if (f.k === 'j') { RD.over = 'lose'; rdEnd(); } else { f.dead = true; f.da = a; rdMsg('ADJOINT TOMBÉ', '', 2); }
@@ -2640,7 +2664,7 @@ function rdBoom(p) {
   const bc = RD.bc; const g = bc.createRadialGradient(p.x1 * TS, p.y1 * TS, 0, p.x1 * TS, p.y1 * TS, R * TS * .8); g.addColorStop(0, 'rgba(10,8,6,.7)'); g.addColorStop(1, 'rgba(10,8,6,0)'); bc.fillStyle = g; bc.fillRect(p.x1 * TS - R * TS, p.y1 * TS - R * TS, R * TS * 2, R * TS * 2);
   for (let i = 0; i < 26; i++) { const a = Math.random() * 6.28, v = 3 + Math.random() * 10; RD.pt.push({ k: 'p', x: p.x1, y: p.y1, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, l: .35 + Math.random() * .3 }); }
   for (let i = 0; i < 10; i++) RD.pt.push({ k: 's', x: p.x1 + (Math.random() - .5) * 3, y: p.y1 + (Math.random() - .5) * 3, vx: (Math.random() - .5) * 2, vy: (Math.random() - .5) * 2, t: 0, l: 1 + Math.random() * .8 });
-  for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested') continue; const d = Math.hypot(e.x - p.x1, e.y - p.y1); if (d < R && (d < 1.5 || rdLos(M, p.x1, p.y1, e.x, e.y))) { e.hp -= 170 * (1 - .6 * d / R); e.hit = .2; rdSplat(e.x, e.y, 6, false); if (e.hp <= 0) rdKill(e, Math.atan2(e.y - p.y1, e.x - p.x1)); else if (e.st === 'idle') { e.st = 'combat'; RD.alarm = true; } } }
+  for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested') continue; const d = Math.hypot(e.x - p.x1, e.y - p.y1); if (d < R && (d < 1.5 || rdLos(M, p.x1, p.y1, e.x, e.y))) { e.hp -= 170 * (1 - .6 * d / R); e.hit = .2; e.kc = 'boom'; rdSplat(e.x, e.y, 6, false); if (e.hp <= 0) rdKill(e, Math.atan2(e.y - p.y1, e.x - p.x1)); else if (e.st === 'idle') { e.st = 'combat'; RD.alarm = true; } } }
   for (const f of RD.sq) { if (f.hp <= 0 || f.dead) continue; const d = Math.hypot(f.x - p.x1, f.y - p.y1); if (d < R && (d < 1.5 || rdLos(M, p.x1, p.y1, f.x, f.y))) rdHurt(f, 70 * (1 - d / R), Math.atan2(f.y - p.y1, f.x - p.x1)); }
   for (const h of RD.hs) if (h.st === 'tied' || h.st === 'fleeing') { const d = Math.hypot(h.x - p.x1, h.y - p.y1); if (d < 4.5 && (d < 1.5 || rdLos(M, p.x1, p.y1, h.x, h.y))) { h.st = 'dead'; h.da = Math.random() * 6; rdSplat(h.x, h.y, 16, true); RD.lost++; rdMsg('OTAGE TOUCHÉ', 'Attention aux grenades près des otages', 3); rdCheck(); } }
   rdNoise(p.x1, p.y1, 30); RD.alarm = true;
@@ -2885,6 +2909,13 @@ function rdSqUpdate() {
 const SPRI = {}; for (const k in SPR_DATA) { const im = new Image(); im.src = SPR_DATA[k]; SPRI[k] = im; }
 const SPR_EN = { bruiser: 'bru', chief: 'chf' };
 function rdSprKey(f) { if (f.k === 'j') return 'jug'; if (f.k === 'a') return f.role; if (f.k === 'e') return SPR_EN[f.t] || f.t; return null; }
+function rdWalk(c, im, x, y, w, h, ph, amp) {
+  const sw = im.naturalWidth, sh = im.naturalHeight, yb = .5, d = Math.sin(ph) * amp * h, sway = Math.sin(ph * .5) * .035;
+  c.save(); c.translate(x + w / 2, y + h / 2); c.rotate(sway); c.translate(-(x + w / 2), -(y + h / 2));
+  c.drawImage(im, 0, sh * yb, sw / 2, sh * (1 - yb), x, y + h * yb + d, w / 2, h * (1 - yb));
+  c.drawImage(im, sw / 2, sh * yb, sw / 2, sh * (1 - yb), x + w / 2, y + h * yb - d, w / 2, h * (1 - yb));
+  c.drawImage(im, 0, 0, sw, sh * (yb + .06), x, y, w, h * (yb + .06)); c.restore();
+}
 function rdSprite(c, px, py, ang, s, f, t, lying) {
   const k = rdSprKey(f), im = k && SPRI[k]; if (!im || !im.complete || !im.naturalWidth) return false;
   const T = f.k === 'e' ? EN[f.t] : null, big = k === 'robc' ? 1.3 : k === 'drone' ? .8 : k === 'sent' ? 1.05 : 1, w = s * 2.35 * big;
@@ -2892,9 +2923,11 @@ function rdSprite(c, px, py, ang, s, f, t, lying) {
   const sh = c.createRadialGradient(s * .1, s * .15, 0, s * .1, s * .15, s * .8); sh.addColorStop(0, 'rgba(0,0,0,.45)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sh; c.beginPath(); c.arc(s * .1, s * .15, s * .8, 0, 6.283); c.fill();
   c.rotate(ang + Math.PI / 2);
   if (k === 'drone' && !lying) { c.translate(0, Math.sin(t * 9 + (f.ph || 0)) * .04 * s); }
-  if (lying) c.globalAlpha *= .8;
-  c.drawImage(im, -w / 2, -w / 2, w, w);
-  if (lying) { c.globalCompositeOperation = 'source-atop'; c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(-w / 2, -w / 2, w, w); }
+  const walk = !lying && (f.mv || f.st === 'fleeing') && k !== 'drone' && k !== 'sent' && k !== 'mech' && k !== 'robc';
+  if (lying) { c.scale(1.06, .84); c.rotate((f.id || f.ph || 0) % 1 * .6 - .3); }
+  if (walk) rdWalk(c, im, -w / 2, -w / 2, w, w, t * 11 + (f.ph || 0), .05); else c.drawImage(im, -w / 2, -w / 2, w, w);
+  if (walk) { c.globalCompositeOperation = 'source-over'; }
+  if (lying) { const ch = f.kc === 'burn' || f.kc === 'boom'; c.globalCompositeOperation = 'source-atop'; c.fillStyle = ch ? 'rgba(6,4,3,.78)' : 'rgba(10,0,0,.42)'; c.fillRect(-w / 2, -w / 2, w, w); if (!ch && EN[f.t] && !EN[f.t].mach && !EN[f.t].cyber) { c.fillStyle = 'rgba(120,6,6,.38)'; c.beginPath(); c.arc(0, 0, w * .2, 0, 6.283); c.fill(); } }
   c.restore();
   if (!lying && f.fl > 0) { c.save(); c.translate(px, py); c.rotate(ang); c.globalCompositeOperation = 'lighter'; const g = c.createRadialGradient(s * 1.15, 0, 0, s * 1.15, 0, s * .45); g.addColorStop(0, 'rgba(255,230,150,.9)'); g.addColorStop(1, 'rgba(255,150,40,0)'); c.fillStyle = g; c.beginPath(); c.arc(s * 1.15, 0, s * .45, 0, 6.283); c.fill(); c.restore(); }
   return true;
@@ -3194,12 +3227,12 @@ function drawRaidMarks(t) {
 function UNITSPR() { const a = SPRI.dozer; return !!(a && a.complete && a.naturalWidth && SPRI.hull && SPRI.hull.complete && SPRI.turret && SPRI.turret.complete && SPRI.fus && SPRI.fus.complete && SPRI.jug && SPRI.jug.complete); }
 const USPR_MAN = { SQ: ['fus', 2.5], CQ: ['sni', 2.6], LF: ['bre', 2.7] };
 let usprList = [];
-function uPush(img, x, y, z, yaw, wm, hm, py, depthBias) {
+function uPush(img, x, y, z, yaw, wm, hm, py, depthBias, walk, ph) {
   const C = proj(x, y, z); if (!C) return;
   const fxv = Math.sin(yaw), fzv = Math.cos(yaw);
   let Pf = proj(x + fxv * hm / 2, y, z + fzv * hm / 2), Pr = proj(x + fzv * wm / 2, y, z - fxv * wm / 2); if (!Pf || !Pr) return;
   if ((Pr[0] - C[0]) * (Pf[1] - C[1]) - (Pr[1] - C[1]) * (Pf[0] - C[0]) > 0) Pr = proj(x - fzv * wm / 2, y, z + fxv * wm / 2);
-  const G0 = proj(x + .4, 0, z + .4); usprList.push({ img, C, Pf, Pr, py, d: C[2] + (depthBias || 0), sh: G0, sr: Math.max(wm, hm * .6) * .5, y });
+  const G0 = proj(x + .4, 0, z + .4); usprList.push({ img, C, Pf, Pr, py, d: C[2] + (depthBias || 0), walk, ph, sh: G0, sr: Math.max(wm, hm * .6) * .5, y });
 }
 function drawUnitSprites(t) {
   if (!UNITSPR()) return;
@@ -3211,20 +3244,111 @@ function drawUnitSprites(t) {
       uPush(SPRI.hull, u.x, 1, u.z, u.yaw, 4.4, 7.3, .5);
       const ts = Math.sin(u.tyaw), tc = Math.cos(u.tyaw), rc = Math.max(0, u.recoil || 0);
       uPush(SPRI.turret, u.x - ts * .3 - ts * rc * .3, 2.3, u.z - tc * .3 - tc * rc * .3, u.tyaw, 3.0, 6.9, .68, -1);
-    } else if (u.type === 'JD') uPush(SPRI.jug, u.x, .6, u.z, u.aim, 3.3, 3.3, .5);
-    else { const mm = USPR_MAN[u.type] || USPR_MAN.SQ, im = SPRI[mm[0]]; for (const m of u.men) uPush(im, m.x, .5, m.z, u.aim, mm[1], mm[1], .5); }
+    } else if (u.type === 'JD') uPush(SPRI.jug, u.x, .6, u.z, u.aim, 3.3, 3.3, .5, 0, u.moving, t * 11);
+    else { const mm = USPR_MAN[u.type] || USPR_MAN.SQ, im = SPRI[mm[0]]; for (let q = 0; q < u.men.length; q++) { const m = u.men[q]; uPush(im, m.x, .5, m.z, u.aim, mm[1], mm[1], .5, 0, m.mv, t * 11 + q * 1.7); } }
   }
   usprList.sort((a, b) => b.d - a.d);
   fx.globalAlpha = .38; fx.fillStyle = '#000'; for (const s of usprList) { if (!s.sh || s.y > 1.5) continue; const r = s.sr * ppmOf(s.sh[2]); fx.beginPath(); fx.ellipse(s.sh[0], s.sh[1], r, r * Math.sin(cam.pitch), 0, 0, 6.283); fx.fill(); } fx.globalAlpha = 1;
   for (const s of usprList) {
     const im = s.img, w = im.naturalWidth, h = im.naturalHeight, C = s.C;
     const ex = (s.Pr[0] - C[0]) / (w / 2), ey = (s.Pr[1] - C[1]) / (w / 2), fx2 = (C[0] - s.Pf[0]) / (h / 2), fy2 = (C[1] - s.Pf[1]) / (h / 2);
-    fx.save(); fx.transform(ex, ey, fx2, fy2, C[0], C[1]); fx.drawImage(im, -w / 2, -s.py * h, w, h); fx.restore();
+    fx.save(); fx.transform(ex, ey, fx2, fy2, C[0], C[1]); if (s.walk) rdWalk(fx, im, -w / 2, -s.py * h, w, h, s.ph, .05); else fx.drawImage(im, -w / 2, -s.py * h, w, h); fx.restore();
   }
   for (const u of units) {
     if (u.flash > 0 && u.type === 'TK') { const ts = Math.sin(u.tyaw), tc = Math.cos(u.tyaw), p = proj(u.x + ts * 7.2, 2.6, u.z + tc * 7.2); if (p) { const g = 5 * ppmOf(p[2]); fx.globalCompositeOperation = 'lighter'; fx.drawImage(sprGlow, p[0] - g, p[1] - g, g * 2, g * 2); fx.globalCompositeOperation = 'source-over'; } }
     else if (u.flash > 0 || (u.men && u.men.some(m => m.flash > 0))) for (const m of u.men || []) if (m.flash > 0) { const as = Math.sin(u.aim), ac = Math.cos(u.aim), p = proj(m.x + as * 1.3, 1.1, m.z + ac * 1.3); if (p) { const g = 1.6 * ppmOf(p[2]); fx.globalCompositeOperation = 'lighter'; fx.drawImage(sprGlow, p[0] - g, p[1] - g, g * 2, g * 2); fx.globalCompositeOperation = 'source-over'; } }
   }
+}
+// ---------- Horde en sprites ----------
+const HKEYS = [['punk', 'thug', 'bru', 'chf'], ['cybg', 'cybs', 'cybh', 'cybc'], ['drone', 'mech', 'drone', 'robc'], ['ghost', 'shld', 'snpi', 'iac']];
+const HW = [[.42, .30, .24, .04], [.40, .28, .26, .06], [.44, .50, 0, .06], [.30, .28, .30, .12]];
+const HSCL = [[1, 1, 1.15, 1.25], [1, 1, 1.2, 1.3], [.85, 2.6, .85, 3.4], [1, 1.05, 1, 1.3]];
+function hordeType() { const w = HW[LEVEL.n] || HW[0]; let r = Math.random(), k = 0; for (; k < 3; k++) { r -= w[k]; if (r < 0) break; } return LEVEL.n * 4 + k; }
+const DEAD_MAX = 24000, dead = new Float32Array(DEAD_MAX * 4); let deadHead = 0, deadCount = 0, deadDirty = false;
+function deadPush(x, z, h, i) { const o = deadHead * 4; dead[o] = x; dead[o + 1] = z; dead[o + 2] = h + (Math.random() - .5) * 2.4; dead[o + 3] = ty[i] + (DCAUSE ? 32 : 0); deadHead = (deadHead + 1) % DEAD_MAX; if (deadCount < DEAD_MAX) deadCount++; deadDirty = true; }
+let HS = null;
+function hordeInit() {
+  for (const r of HKEYS) for (const k of r) { const im = SPRI[k]; if (!im || !im.complete || !im.naturalWidth) return false; }
+  const cv = document.createElement('canvas'); cv.width = cv.height = 576; const c = cv.getContext('2d');
+  for (let r = 0; r < 4; r++) for (let q = 0; q < 4; q++) c.drawImage(SPRI[HKEYS[r][q]], q * 144, r * 144, 144, 144);
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv); gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const p = prog(`
+layout(location=0) in vec2 corner; layout(location=1) in vec2 ipos; layout(location=2) in float ihd; layout(location=3) in float ity;
+uniform mat4 uVP; uniform float uTime, uRs, uDead; uniform vec3 uEye; uniform sampler2D uCorpse; uniform float uScl[16]; uniform float uCs;
+out vec2 vUv; out float vR; out float vPh; out vec3 vW; out float vT; out float vC;
+void main(){
+  float r=fract(sin(float(gl_InstanceID)*12.9898+uDead*7.)*43758.5453);
+  int ti=int(ity+.5); float cause=0.; if(ti>=32){ ti-=32; cause=1.; }
+  float sc=uScl[ti]*uCs;
+  ivec2 t=clamp(ivec2((ipos+500.)*.5),ivec2(0),ivec2(499));
+  float h=texelFetch(uCorpse,t,0).r;
+  vPh=uTime*(7.+r*3.)+r*40.; vR=r; vT=float(ti); vC=cause;
+  vUv=vec2(corner.x+.5,.5-corner.y);
+  vec2 lp=corner*sc*vec2(1.,1.);
+  if(uDead>.5){ lp*=vec2(1.08,.85); }
+  float c=cos(ihd), s=sin(ihd);
+  vec2 f=vec2(s,c), rt=uRs*vec2(c,-s);
+  vec2 off=rt*lp.x+f*lp.y;
+  vec3 w=vec3(ipos.x+off.x,h+.06+r*.03+uDead*(-.03),ipos.y+off.y);
+  vW=w; gl_Position=uVP*vec4(w,1.);
+}`, COMMON + `
+in vec2 vUv; in float vR; in float vPh; in vec3 vW; in float vT; in float vC; out vec4 o;
+uniform sampler2D uAtlas; uniform float uDead;
+void main(){
+  vec2 uv=vUv; float k=smoothstep(.40,.95,uv.y);
+  float side=uv.x<.5?1.:-1.;
+  if(uDead<.5){ uv.y+=side*sin(vPh)*.055*k; uv.x+=sin(vPh*.5)*.012; }
+  vec2 cell=vec2(mod(vT,4.),floor(vT/4.));
+  vec2 au=(cell+clamp(uv,.002,.998))/4.;
+  vec4 tc=texture(uAtlas,au);
+  if(tc.a<.45) discard;
+  vec3 c=tc.rgb*(.78+.4*fract(vR*7.));
+  if(uDead>.5){ c*= (vC>.5?.3:.62); c=mix(c,vec3(.22,.015,.012),vC>.5?0.:.3*smoothstep(.2,.8,fract(vR*5.))); }
+  c*=vec3(.62)+.75*clamp(uAmb*uTint,0.,1.);
+  o=vec4(fogit(c,vW),1.);
+}`);
+  const L = locs(p, ['uCorpse', 'uAtlas', 'uRs', 'uDead', 'uCs']); L.uScl = gl.getUniformLocation(p, 'uScl[0]');
+  const quadB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quadB); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-.5, -.5, .5, -.5, -.5, .5, .5, .5]), gl.STATIC_DRAW);
+  const hdB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, hdB); gl.bufferData(gl.ARRAY_BUFFER, hd.byteLength, gl.DYNAMIC_DRAW);
+  const tyB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, tyB); gl.bufferData(gl.ARRAY_BUFFER, ty.byteLength, gl.DYNAMIC_DRAW);
+  const dB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, dB); gl.bufferData(gl.ARRAY_BUFFER, dead.byteLength, gl.DYNAMIC_DRAW);
+  const v1 = gl.createVertexArray(); gl.bindVertexArray(v1);
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadB); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(1, 1);
+  gl.bindBuffer(gl.ARRAY_BUFFER, hdB); gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(2, 1);
+  gl.bindBuffer(gl.ARRAY_BUFFER, tyB); gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(3, 1);
+  const v2 = gl.createVertexArray(); gl.bindVertexArray(v2);
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadB); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, dB); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 16, 0); gl.vertexAttribDivisor(1, 1);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 16, 8); gl.vertexAttribDivisor(2, 1);
+  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 16, 12); gl.vertexAttribDivisor(3, 1);
+  gl.bindVertexArray(null);
+  HS = { p, L, tex, hdB, tyB, dB, v1, v2, scl: new Float32Array(16) };
+  for (let r = 0; r < 4; r++) for (let q = 0; q < 4; q++) HS.scl[r * 4 + q] = HSCL[r][q];
+  return true;
+}
+let hRs = 1;
+function hordeDraw(t, common) {
+  if (!HS && !hordeInit()) return false;
+  const C = proj(0, 0, 0), Pf = proj(0, 0, 10), Pr = proj(10, 0, 0);
+  if (C && Pf && Pr) hRs = ((Pr[0] - C[0]) * (Pf[1] - C[1]) - (Pr[1] - C[1]) * (Pf[0] - C[0]) > 0) ? -1 : 1;
+  const L = HS.L, sc = Math.max(1, cam.dist / 520);
+  common(L, HS.p);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, corpseTex); gl.uniform1i(L.uCorpse, 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, HS.tex); gl.uniform1i(L.uAtlas, 1);
+  gl.uniform1f(L.uRs, hRs); gl.uniform1f(L.uCs, 2.9 * Math.min(2.2, sc)); gl.uniform1fv(L.uScl, HS.scl);
+  if (deadCount > 0) {
+    if (deadDirty) { gl.bindBuffer(gl.ARRAY_BUFFER, HS.dB); gl.bufferSubData(gl.ARRAY_BUFFER, 0, dead, 0, deadCount * 4); deadDirty = false; }
+    gl.uniform1f(L.uDead, 1); gl.bindVertexArray(HS.v2); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, deadCount);
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, HS.hdB); gl.bufferSubData(gl.ARRAY_BUFFER, 0, hd, 0, N);
+  gl.bindBuffer(gl.ARRAY_BUFFER, HS.tyB); gl.bufferSubData(gl.ARRAY_BUFFER, 0, ty, 0, N);
+  gl.uniform1f(L.uDead, 0); gl.bindVertexArray(HS.v1); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, N);
+  gl.bindVertexArray(null);
+  return true;
 }
 // ---------- Campagne : niveaux, objectifs verrouillés ----------
 const LEVELS = MEGA;
@@ -3248,7 +3372,7 @@ function levelComplete() {
 }
 function startLevel(n) {
   $('lvl').style.display = 'none'; LEVEL.n = n; loadLevel();
-  corpse.fill(0); densR.fill(0); densW.fill(0); marks.fill(0); mkMin = 0; mkMax = MK - 1; mkForce = true; S.corpseDirty = true; N = 0;
+  corpse.fill(0); densR.fill(0); densW.fill(0); marks.fill(0); mkMin = 0; mkMax = MK - 1; mkForce = true; S.corpseDirty = true; N = 0; deadCount = 0; deadHead = 0; deadDirty = true;
   timers.length = 0; decoys.length = 0; parts.length = 0; tracers.length = 0; rings.length = 0; mines.length = 0; armed = null; armedItem = null;
   res.hq = 1000; res.sp += 150; S.time = 0; Object.assign(WV, { i: 0, phase: 'prep', t: 45, left: 0, acc: 0 });
   let k = 0; for (const u of units) { u.hp = u.maxhp; u.order = null; u.x = FOBX + (k % 6 - 2.5) * 5; u.z = FOBZ + 8 + ((k / 6) | 0) * 5; k++; if (u.men) u.men.forEach(m => { m.x = u.x + m.ox; m.z = u.z + m.oz; }); if (u.type !== 'JD') { u.follow = true; u.hold = false; u.amb = false; } for (const kk in INV0[u.type]) u.inv[kk] = INV0[u.type][kk]; }
