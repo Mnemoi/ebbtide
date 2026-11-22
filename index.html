@@ -341,7 +341,7 @@ const P = {
   CAP: 3, PK: 1.4, PMAX: 9, FAR: 300, NEAR_FOB: 85,
   WALL_HP: 4000, GATE_HP: 1800, DMG: 0.5, WALL_H: 5.2, TOWER_H: 12,
   CLIMB: 4.0, CORPSE: 0.1, PILE_MAX: 8,
-  TOWER_RANGE: 78, TOWER_RATE: 0.05, TOWER_KILLS: 2, TOWER_SAMPLES: 14,
+  TOWER_RANGE: 78, TOWER_RATE: 0.7, TOWER_KILLS: 1, TOWER_SAMPLES: 14,
 };
 const ACC = Object.assign({ ui: 1, diff: 1, calm: false, hc: false, sfx: 1, mus: .8 }, (() => { try { return JSON.parse(localStorage.getItem('ebbtideAcc') || '{}'); } catch (e) { return {}; } })());
 const DMUL = [.4, .85, 1.2, 1.6], WMUL = [.45, .9, 1.3, 1.8];
@@ -430,7 +430,7 @@ function nearestFree(blk, x, z) {
 }
 
 // ---------- Agents, densité, cadavres, marques ----------
-const pos = new Float32Array(MAX * 2), spd = new Float32Array(MAX), hd = new Float32Array(MAX), ty = new Float32Array(MAX); let DCAUSE = 0;
+const pos = new Float32Array(MAX * 2), spd = new Float32Array(MAX), hd = new Float32Array(MAX), ty = new Float32Array(MAX), ehp = new Float32Array(MAX); let DCAUSE = 0;
 const nearList = new Int32Array(300000);
 let nearCount = 0, N = 0, frameNo = 0;
 let densR = new Uint32Array(DG * DG), densW = new Uint32Array(DG * DG);
@@ -464,15 +464,16 @@ function addCorpse(x, z) {
   S.corpseDirty = true;
 }
 function killAgent(i) {
+  if (!DCAUSE && --ehp[i] > 0) return;
   const x = pos[2 * i], z = pos[2 * i + 1];
   addCorpse(x, z);
   if ((S.kills & 3) === 0) paint(x, z, 1.7, 0, 85);
-  deadPush(x, z, hd[i], i); N--; pos[2 * i] = pos[2 * N]; pos[2 * i + 1] = pos[2 * N + 1]; spd[i] = spd[N]; hd[i] = hd[N]; ty[i] = ty[N];
+  deadPush(x, z, hd[i], i); N--; pos[2 * i] = pos[2 * N]; pos[2 * i + 1] = pos[2 * N + 1]; spd[i] = spd[N]; hd[i] = hd[N]; ty[i] = ty[N]; ehp[i] = ehp[N];
   S.kills++;
 }
 function killRadius(x, z, r) { evBlast(x, z, r); DCAUSE = 1; try { return killRadius0(x, z, r); } finally { DCAUSE = 0; } }
 function killRadius0(x, z, r) {
-  const rr = r * r; let k = 0; const KP = KILLP();
+  const rr = r * r; let k = 0; const KP = .8;
   for (let i = 0; i < N;) {
     const dx = pos[2 * i] - x, dz = pos[2 * i + 1] - z;
     if (dx * dx + dz * dz < rr && (KP >= 1 || r2() < KP)) { killAgent(i); k++; } else i++;
@@ -507,7 +508,7 @@ function spawnRing(k, sides) {
       x = Math.max(-HALF + 3, Math.min(HALF - 3, x)); z = Math.max(-HALF + 3, Math.min(HALF - 3, z));
       ok = !blocked[(((z + HALF) / CELL) | 0) * G + (((x + HALF) / CELL) | 0)];
     }
-    pos[2 * i] = x; pos[2 * i + 1] = z; spd[i] = 5 + rnd() * 5; ty[i] = hordeType(); hd[i] = Math.atan2(-x, -z);
+    pos[2 * i] = x; pos[2 * i + 1] = z; spd[i] = 5 + rnd() * 5; ty[i] = hordeType(); hd[i] = Math.atan2(-x, -z); ehp[i] = 7 + (ty[i] % 4) * 3;
   }
   N += k;
 }
@@ -535,7 +536,7 @@ function step(dt, n) {
     let vx, vz;
     if (ag > 0) {
       const ux = uAX[ag - 1] - x, uz = uAZ[ag - 1] - z, ul = Math.sqrt(ux * ux + uz * uz) || 1;
-      if (ul < 1.6) { vx = 0; vz = 0; } else { vx = ux / ul * s * 1.05; vz = uz / ul * s * 1.05; }
+      if (ul < 20) { vx = 0; vz = 0; } else { vx = ux / ul * s * 1.05; vz = uz / ul * s * 1.05; }
     } else { vx = dirx[c] * s; vz = dirz[c] * s; }
     let dcx = ((x + HALF) * invD) | 0, dcz = ((z + HALF) * invD) | 0;
     if (dcx < 1) dcx = 1; else if (dcx > DG - 2) dcx = DG - 2;
@@ -1698,16 +1699,16 @@ function cycleStance(list) {
   selDirty = true; sfx.ui();
 }
 // ---------- Vagues, ressources ----------
-const WAVES = [15e3, 25e3, 30e3, 40e3, 52e3, 66e3, 84e3, 104e3, 128e3, 156e3, 190e3, 230e3];
+const WAVES = [36, 48, 60, 72, 88, 104, 120, 138, 156, 176, 198, 220];
 const WAGG = () => (LEVEL.n * 3 + WV.i) >= 2 ? .6 : .8;
-const KILLP = () => [1, .8, .62, .48][Math.min(3, LEVEL.n)];
+const KILLP = () => [.08, .07, .06, .05][Math.min(3, LEVEL.n)];
 const res = { sp: 260, hq: 1000 };
 const G_ = { over: null, started: false };
 const WV = { i: 0, phase: 'prep', t: 40, left: 0, rate: 0, acc: 0, sides: [0, 1], count: 0 };
 function startWave() {
   const s0 = (rnd() * 4) | 0, s1 = (s0 + 1 + ((rnd() * 3) | 0)) % 4; WV.sides = [s0, s1];
   WV.left = Math.round(WAVES[LEVEL.n * 3 + WV.i] * WMUL[ACC.diff]); WV.rate = WV.left / 7; WV.acc = 0; WV.phase = 'spawn'; WV.t = 100; spawnEvs();
-  bannerBig('VAGUE ' + (WV.i + 1), fmt(WV.left) + ' criminels en approche'); sfx.horn(); res.sp += 60;
+  bannerBig('VAGUE ' + (WV.i + 1), fmt(WV.left) + ' soldats ennemis en approche'); sfx.horn(); res.sp += 60;
 }
 function updateWaves(dt) {
   if (G_.over) return;
@@ -1727,7 +1728,7 @@ function endGame(kind, why) {
   if (G_.over) return;
   G_.over = kind; $('end').style.display = 'flex';
   $('endT').textContent = kind === 'win' ? 'VICTOIRE' : 'FOB PERDU';
-  $('endP').textContent = kind === 'win' ? `Le FOB Alpha a tenu les ${WAVES.length} vagues. ${fmt(S.kills)} criminels neutralisés.` : `${why || 'Le QG est tombé'} Vague ${WV.i + 1}. ${fmt(S.kills)} zombies éliminés en ${$('tT').textContent}.`;
+  $('endP').textContent = kind === 'win' ? `Le FOB Alpha a tenu les ${WAVES.length} vagues. ${fmt(S.kills)} soldats ennemis neutralisés.` : `${why || 'Le QG est tombé'} Vague ${WV.i + 1}. ${fmt(S.kills)} zombies éliminés en ${$('tT').textContent}.`;
 }
 function onBreach(c) { if (!isGate[c]) { alertB('BRÈCHE DANS LE MUR'); } else alertB('PORTE ENFONCÉE'); }
 let alertT = 0;
@@ -3462,6 +3463,19 @@ function drawEvs(t) {
   for (const e of EVS) { const T = e.T, im = SPRI[T.k]; if (!im || !im.complete || !im.naturalWidth) continue; uPush(im, e.x, .9, e.z, e.yaw, T.wm, T.hm, .5, 0, true, t * 6);
     const p = proj(e.x, 0, e.z); if (p) { const ppm = ppmOf(p[2]), w = Math.max(30, T.rad * ppm * 3), y = p[1] - 6 * ppm; fx.fillStyle = 'rgba(0,0,0,.7)'; fx.fillRect(p[0] - w / 2, y, w, 5); fx.fillStyle = e.hit > 0 ? '#fff' : '#e5483b'; fx.fillRect(p[0] - w / 2 + 1, y + 1, (w - 2) * Math.max(0, e.hp / e.maxhp), 3); fx.font = '700 10px system-ui,sans-serif'; fx.textAlign = 'center'; fx.fillStyle = '#ffb0a0'; fx.fillText(T.n, p[0], y - 3); } }
 }
+
+// ---------- Tirs des soldats ennemis ----------
+let efT = 0;
+function enemyFire(dt) {
+  if (!N) return; efT -= dt; const hit = [];
+  for (const u of units) {
+    if (u.hp <= 0 || (u.onRoof && 0)) continue; let c = 0, sx = 0, sz = 0;
+    for (let i = 0; i < N && c < 60; i++) { const dx = pos[2 * i] - u.x, dz = pos[2 * i + 1] - u.z; if (dx * dx + dz * dz < 900) { c++; if (c <= 3) { sx = pos[2 * i]; sz = pos[2 * i + 1]; hit.push([u, pos[2 * i], pos[2 * i + 1]]); } } }
+    if (c) { const k = u.onRoof ? .35 : 1; u.hp -= c * 1.1 * T_DMG() * DMUL[ACC.diff] * WAGG() * k * dt; }
+  }
+  if (efT <= 0) { efT = .22; for (const [u, x, z] of hit) { addTracer(x, 1.6, z, u.x + (Math.random() - .5) * 2, 1.4 + (u.roofH || 0), u.z + (Math.random() - .5) * 2, [255, 120, 70, 1.5]); if (Math.random() < .12) addP('spark', u.x, 1.2 + (u.roofH || 0), u.z, (Math.random() - .5) * 6, 4, (Math.random() - .5) * 6, .3, .3); } }
+}
+const T_DMG = () => 1.0;
 // ---------- Façades photo ----------
 const FCIM = {}; for (const k in FAC_DATA) { const im = new Image(); im.src = FAC_DATA[k]; FCIM[k] = im; }
 let FACT = null;
@@ -3720,7 +3734,7 @@ function frame(now) {
     cam.tx = Math.max(-HALF, Math.min(HALF, cam.tx)); cam.tz = Math.max(-HALF, Math.min(HALF, cam.tz));
     if (!opts.paused && !G_.over) {
       const dt = Math.min(dtReal, .05) * opts.speed, t0 = performance.now();
-      updateWaves(dt); updateUnits(dt, t); updateRoof(dt); updateEvs(dt, t); step(dt, N); towersFire(dt); updateGame(dt, dtReal); frameNo++;
+      updateWaves(dt); updateUnits(dt, t); updateRoof(dt); updateEvs(dt, t); enemyFire(dt); step(dt, N); towersFire(dt); updateGame(dt, dtReal); frameNo++;
       simMs = performance.now() - t0; updateFx(dtReal * opts.speed);
     } else if (!opts.paused) updateFx(dtReal);
     if (bnT > 0) { bnT -= dtReal; if (bnT <= 0) $('banner').classList.remove('on'); }
