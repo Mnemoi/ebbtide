@@ -194,6 +194,7 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
 .touch #rdFlash{right:max(12px,env(safe-area-inset-right))}.touch #rdAct{right:max(88px,calc(env(safe-area-inset-right) + 76px))}
 .touch #rdQuit{right:max(12px,env(safe-area-inset-right))}.touch #rdHelpB{right:max(96px,calc(env(safe-area-inset-right) + 84px))}
 #rdCenter{right:182px;top:10px;padding:7px 12px;background:rgba(20,22,27,.9);border:1px solid var(--ln);font-size:11px}.touch #rdCenter{right:max(176px,calc(env(safe-area-inset-right) + 164px));top:6px;padding:6px 9px}
+body:not(.touch) .sqi button{flex:1 1 44%;min-width:0;text-align:left}
 #vig{position:fixed;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,.38) 100%)}
 .inraid #vig{display:none}
 #gl{filter:contrast(1.14) saturate(1.0) brightness(.96)}
@@ -236,7 +237,7 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
 <tr><td>Tab · T · Ctrl+A · G</td><td>unité suivante · tout l'équipage · tout · le juge</td></tr>
 <tr><td>Clic droit (sol ou mini-carte)</td><td>déplacer la sélection · clic gauche aussi si un équipier est choisi</td></tr>
 <tr><td>H · Retour arrière</td><td>poste : suit le juge → tient la position → embuscade · stop</td></tr>
-<tr><td>B · Y · L</td><td>grenade (obus pour le char) · mine · soins : puis clic pour lancer. Ravitaillement près du fort</td></tr>
+<tr><td>B · I · Y · L</td><td>grenade (obus pour le char) · incendiaire · mine · soins : puis clic pour lancer. Ravitaillement près du fort</td></tr>
 <tr><td>Boutons des cartes</td><td>poste et équipement de chaque unité</td></tr>
 <tr><td>1 2 3 4 5 · F · Espace</td><td>appuis (mortier, frappe, appât, réparer, charges) · mortier auto · Verdict</td></tr>
 <tr><td>6 7 8 9 0</td><td>appeler des renforts</td></tr>
@@ -1302,6 +1303,8 @@ const sfx = {
   ricochet(pan) { if (!auOK('rico', 70)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 3400, 1100, .15, .1, pan, .4); auNz(t, .05, 'bandpass', 4200, 3000, 1, .12, pan, .3); },
   hurt() { if (!auOK('hurt', 150)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 85, 38, .22, .7, 0, .2); auNz(t, .15, 'lowpass', 420, 150, .6, .35, 0, .2); AU.duckUntil = performance.now() + 400; },
   heart() { if (!auOK('heart', 400)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 62, 40, .12, .7, 0, .1); auOsc(t + .17, 'sine', 55, 38, .14, .5, 0, .1); },
+  molotov(pan) { if (!auOK('molotov', 200)) return; const t = AU.ctx.currentTime; auNz(t, .08, 'highpass', 6000, 3500, .5, .7, pan, .5); auOsc(t, 'sine', 3400, 1800, .06, .15, pan, .4); auNz(t + .06, .7, 'lowpass', 1400, 200, .5, .6, pan, .6, 0, .05); auOsc(t + .05, 'sine', 90, 45, .5, .5, pan, .3); },
+  crackle(pan) { if (!auOK('crackle', 90)) return; const t = AU.ctx.currentTime; for (let i = 0; i < 3; i++) auNz(t + Math.random() * .2, .03 + Math.random() * .04, 'bandpass', 1800 + Math.random() * 3500, 900, 1.5, .09, pan, .25); auNz(t, .3, 'lowpass', 500, 200, .5, .06, pan, .2); },
   cuff(pan) { if (!auOK('cuff', 80)) return; const t = AU.ctx.currentTime; auNz(t, .02, 'highpass', 3500, 3000, .8, .3, pan, .3); auOsc(t, 'sine', 2600, 2400, .05, .14, pan, .3); auNz(t + .09, .02, 'highpass', 3000, 2800, .8, .3, pan, .3); auOsc(t + .09, 'sine', 3100, 2900, .05, .14, pan, .3); },
   freed() { if (!auOK('freed', 300)) return; const t = AU.ctx.currentTime; [523.25, 659.25, 783.99].forEach((f, i) => auOsc(t + i * .11, 'sine', f, f, .55, .22, 0, .9)); },
   med() { if (!auOK('med', 200)) return; const t = AU.ctx.currentTime; [660, 880, 1320].forEach((f, i) => auOsc(t + i * .08, 'sine', f, f, .4, .18, 0, .6)); },
@@ -1342,8 +1345,8 @@ const TYPES = {
   CQ: { label: 'Coéquipiers', hp: 80, armor: .9, spd: 8.5, rad: 2.4, turn: 99, col: '#4fc0a0', ic: 'CQ' },
   LF: { label: 'Lance-flammes', hp: 90, armor: .9, spd: 7.5, rad: 2.6, turn: 99, col: '#e0602a', ic: 'LF' },
 };
-const INV0 = { JD: { gren: 3, mine: 1, med: 2 }, CQ: { gren: 2, med: 2 }, SQ: { gren: 3, mine: 1, med: 1 }, LF: { gren: 1, mine: 2 }, TK: { shell: 4 }, DZ: {} };
-const ITN = { gren: { n: 'Grenade', k: 'B', r: 7, range: 45, cd: 2.5 }, shell: { n: 'Obus', k: 'B', r: 11, range: 90, cd: 6 }, mine: { n: 'Mine', k: 'Y', r: 3, range: 30, cd: 1.5 }, med: { n: 'Soins', k: 'L' } };
+const INV0 = { JD: { gren: 3, inc: 2, mine: 1, med: 2 }, CQ: { gren: 2, inc: 1, med: 2 }, SQ: { gren: 3, inc: 1, mine: 1, med: 1 }, LF: { gren: 1, inc: 2, mine: 2 }, TK: { shell: 4 }, DZ: {} };
+const ITN = { gren: { n: 'Grenade', k: 'B', r: 7, range: 45, cd: 2.5 }, shell: { n: 'Obus', k: 'B', r: 11, range: 90, cd: 6 }, mine: { n: 'Mine', k: 'Y', r: 3, range: 30, cd: 1.5 }, inc: { n: 'Incendiaire', k: 'I', r: 6, range: 45, cd: 3 }, med: { n: 'Soins', k: 'L' } };
 let armedItem = null, camFollow = true, mOnCanvas = false;
 let cnt = { DZ: 1, TK: 2, SQ: 82, CQ: 1, LF: 1, JD: 1 };
 const NMEN = { SQ: 8, CQ: 4, LF: 4 };
@@ -1451,7 +1454,7 @@ function updateUnits(dt, t) {
     }
     // dégâts des zombies
     const zc = zAround(u.x, u.z);
-    if (zc > 0) { u.hp -= zc * .22 * T.armor * DMUL[ACC.diff] * dt; if (!SQL(u.type) && u.type !== 'JD' && r2() < dt * 6) bloodSpray(u.x + (r2() - .5) * 4, u.z + (r2() - .5) * 4, 2); }
+    if (zc > 0) { u.hp -= zc * .22 * T.armor * DMUL[ACC.diff] * WAGG() * dt; if (!SQL(u.type) && u.type !== 'JD' && r2() < dt * 6) bloodSpray(u.x + (r2() - .5) * 4, u.z + (r2() - .5) * 4, 2); }
     // zone d'attraction
     uAX[i] = u.x; uAZ[i] = u.z;
     { const acx = ((u.x + HALF) / ACELL) | 0, acz = ((u.z + HALF) / ACELL) | 0;
@@ -1624,6 +1627,7 @@ function useItemAt(x, z) {
   u.inv[kind]--; u.tcd = I.cd; u.aim = Math.atan2(dx, dz); selDirty = true;
   if (kind === 'gren') { addTracer(u.x, 2, u.z, x, 1, z, [255, 160, 60, 2]); timers.push({ t: .9, fn: () => { killRadius(x, z, I.r); explosion(x, z, 6); } }); tone(500, 300, .1, .1, 'square'); }
   else if (kind === 'shell') { addTracer(u.x, 2.6, u.z, x, 1, z, [255, 210, 120, 3]); sfx.cannon(); timers.push({ t: 1.2, fn: () => { killRadius(x, z, I.r); explosion(x, z, 10); } }); }
+  else if (kind === 'inc') { addTracer(u.x, 2, u.z, x, 1, z, [255, 150, 40, 2]); tone(420, 260, .12, .1, 'square'); paint(x, z, 7, 2, 40); for (let i = 0; i < 12; i++) timers.push({ t: .8 + i * .5, fn: () => { killRadius(x, z, I.r); for (let q = 0; q < 7; q++) addP('fire', x + (r2() - .5) * I.r * 1.6, 1, z + (r2() - .5) * I.r * 1.6, (r2() - .5), 3 + r2() * 3, (r2() - .5), .6, 1.7); } }); }
   else if (kind === 'mine') { if (mines.length >= 14) mines.shift(); mines.push({ x, z }); sfx.ui(); tone(300, 200, .15, .1, 'square'); }
   return true;
 }
@@ -1640,7 +1644,8 @@ function cycleStance(list) {
   selDirty = true; sfx.ui();
 }
 // ---------- Vagues, ressources ----------
-const WAVES = [15e3, 25e3, 40e3, 60e3, 85e3, 115e3, 150e3, 200e3, 260e3, 340e3];
+const WAVES = [15e3, 25e3, 30e3, 40e3, 52e3, 66e3, 84e3, 104e3, 128e3, 156e3];
+const WAGG = () => (LEVEL.n * 2 + WV.i) >= 2 ? .75 : 1;
 const res = { sp: 260, hq: 1000 };
 const G_ = { over: null, started: false };
 const WV = { i: 0, phase: 'prep', t: 40, left: 0, rate: 0, acc: 0, sides: [0, 1], count: 0 };
@@ -1658,7 +1663,7 @@ function updateWaves(dt) {
   } else if (WV.phase === 'fight') {
     WV.t -= dt;
     if (N < 300 || WV.t <= 0) {
-      WV.i++; res.sp += 80; unlockNext('vague');
+      WV.i++; res.sp += 80; unlockNext('vague'); unlockNext('vague');
       if (WV.i >= LEVEL.waves) { levelComplete(); } else { WV.phase = 'prep'; WV.t = 28; bannerBig('VAGUE ' + WV.i + ' REPOUSSÉE', 'Nouvelle position débloquée (carte : M) · prochaine vague dans 28 s'); }
     }
   }
@@ -1788,7 +1793,7 @@ addEventListener('keydown', e => {
   else if (k === 'h') cycleStance(units.filter(u => u.sel));
   else if (k === 'backspace' || k === 'delete') { for (const u of units) if (u.sel) { u.order = null; if (u.type !== 'JD') { u.follow = false; u.hold = true; } } selDirty = true; }
   else if (k === 'b') armItem(units.some(u => u.sel && u.inv.gren > 0) || !units.some(u => u.sel && u.inv.shell > 0) ? 'gren' : 'shell');
-  else if (k === 'y') armItem('mine'); else if (k === 'l') useMed();
+  else if (k === 'i') armItem('inc'); else if (k === 'y') armItem('mine'); else if (k === 'l') useMed();
   else if (k === 'c') { camFollow = true; const j = units.find(u => u.type === 'JD'); if (j) { cam.tx = j.x; cam.tz = j.z; } }
   else if (k === '?' || k === 'f1') { e.preventDefault(); $('ohelp').style.display = $('ohelp').style.display === 'flex' ? 'none' : 'flex'; }
   else if (k === 'v') cycleSpeed(); else if (k === 'n') cycleTod(); else if (k === 'o') toggleSnd();
@@ -1899,7 +1904,7 @@ function updateGame(dt, dtReal) {
   // QG
   const cx = dcell(FOBX), cz = dcell(FOBZ); let hq = 0;
   for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) hq += densR[(cz + dz) * DG + cx + dx];
-  if (hq > 0) { res.hq -= hq * .03 * DMUL[ACC.diff] * dt; if (res.hq <= 0 && !G_.over) { res.hq = 0; explosion(FOBX, FOBZ, 16); endGame('lose'); } }
+  if (hq > 0) { res.hq -= hq * .03 * DMUL[ACC.diff] * WAGG() * dt; if (res.hq <= 0 && !G_.over) { res.hq = 0; explosion(FOBX, FOBZ, 16); endGame('lose'); } }
   for (let i = mines.length - 1; i >= 0; i--) { const m = mines[i]; if (zAround(m.x, m.z) >= 10) { mines.splice(i, 1); killRadius(m.x, m.z, 10); explosion(m.x, m.z, 9); } }
   for (let i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { const f = timers[i].fn; timers.splice(i, 1); f(); } }
   for (let i = decoys.length - 1; i >= 0; i--) { decoys[i].t -= dt; if (decoys[i].t <= 0) { decoys.splice(i, 1); if (!decoys.length) buildField(FC, FC); } }
@@ -1942,18 +1947,18 @@ function pickRaids() {
     }
     return c;
   };
-  let cand = find(16, 60, 150, 6);
-  if (cand.length < 5) cand = find(12, 45, 230, 4);
-  const NB = 5, pick = [];
+  let cand = find(14, 55, 230, 5);
+  if (cand.length < 12) cand = find(12, 40, 320, 3);
+  const NB = 10, pick = [];
   for (let k = 0; k < NB; k++) {
     const lo = -Math.PI + k * 2 * Math.PI / NB, hi = lo + 2 * Math.PI / NB;
     const inb = cand.filter(c => c.ang >= lo && c.ang < hi).sort((a, b) => a.dd - b.dd);
     if (inb.length) pick.push(inb[0]);
   }
   for (const c of cand.sort((a, b) => a.dd - b.dd)) { if (pick.length >= NB) break; if (!pick.includes(c)) pick.push(c); }
-  const names = ['Appartement', 'Entrepôt', 'Planque du gang', 'Commissariat occupé', 'Bar des Lames'];
-  const kinds = ['rescue', 'arrest', 'rescue', 'mixed', 'arrest'];
-  pick.forEach((c, i) => RAIDS.push({ x: c.x, z: c.z, w: c.w, d: c.d, h: c.h, doorX: c.x, doorZ: c.z + c.d / 2 + 2.2, name: names[i % names.length], kind: kinds[i % kinds.length], seed: 9100 + i * 77 + LEVEL.n * 1000, done: false, tries: 0, locked: i > 0, lvl: i }));
+  const names = ['Appartement', 'Entrepôt', 'Planque du gang', 'Commissariat occupé', 'Bar des Lames', 'Garage clandestin', 'Épicerie fortifiée', 'Hôtel abandonné', 'Usine désaffectée', 'Dépôt de munitions'];
+  const kinds = ['rescue', 'arrest', 'rescue', 'mixed', 'arrest', 'rescue', 'mixed', 'arrest', 'rescue', 'mixed'];
+  pick.forEach((c, i) => RAIDS.push({ x: c.x, z: c.z, w: c.w, d: c.d, h: c.h, doorX: c.x, doorZ: c.z + c.d / 2 + 2.2, name: names[i % names.length], kind: kinds[i % kinds.length], seed: 9100 + i * 77 + LEVEL.n * 1000, done: false, tries: 0, locked: i >= 3, lvl: Math.floor(i * .55) }));
 }
 pickRaids();
 
@@ -2361,17 +2366,22 @@ const WP = {
   sniper: { n: 'Fusil de précision', dmg: 125, cd: 1.5, rng: 34, acc: .99, gun: 1.5 },
 };
 const ARM = { light: { n: 'Légère', hp: 1, spd: 1 }, medium: { n: 'Moyenne', hp: 1.15, spd: .94 }, heavy: { n: 'Lourde', hp: 1.4, spd: .84 } };
-const ITEMS = { flash: { n: 'Flash', c: 2, k: 'F', d: 'Aveugle les criminels : ils peuvent être arrêtés.' }, gren: { n: 'Grenade', c: 2, k: 'G', d: 'Explose : tue ou blesse. Dangereux pour les otages et les équipiers.' }, smoke: { n: 'Fumigène', c: 2, k: 'V', d: 'Bloque la vue (la vôtre et la leur) pendant 10 s.' }, med: { n: 'Trousse', c: 1, k: 'B', d: 'Soigne le porteur et les équipiers proches.' }, none: { n: '— rien —', c: 0, k: '', d: '' } };
+const ITEMS = { flash: { n: 'Flash', c: 2, k: 'F', d: 'Aveugle les criminels : ils peuvent être arrêtés.' }, gren: { n: 'Grenade', c: 2, k: 'G', d: 'Explose : tue ou blesse. Dangereux pour les otages et les équipiers.' }, smoke: { n: 'Fumigène', c: 2, k: 'V', d: 'Bloque la vue (la vôtre et la leur) pendant 10 s.' }, fire: { n: 'Incendiaire', c: 2, k: 'I', d: 'Crée un brasier qui brûle et fait fuir les criminels. Dangereux pour les otages et les équipiers.' }, med: { n: 'Trousse', c: 1, k: 'B', d: 'Soigne le porteur et les équipiers proches.' }, none: { n: '— rien —', c: 0, k: '', d: '' } };
 const ROLES = {
-  jug: { name: 'LE JUGE', tag: 'JUGE', hp: 140, wps: ['pistol', 'shotgun', 'rifle'], col: '#d9b43a', desc: "Chef d'équipe. S'il tombe, le raid est perdu." },
-  fus: { name: 'FUSILIER', tag: 'FUS', hp: 85, wps: ['rifle', 'shotgun', 'pistol'], col: '#5fb0d6', desc: 'Soldat polyvalent. Feu nourri à moyenne portée.' },
-  sni: { name: "TIREUR D'ÉLITE", tag: 'TIR', hp: 60, wps: ['sniper', 'rifle', 'pistol'], col: '#9bcf6a', desc: 'Tue de très loin. Fragile : en retrait ou en embuscade.' },
-  bre: { name: 'BRÈCHEUR', tag: 'BRÈ', hp: 105, wps: ['shotgun', 'rifle', 'pistol'], col: '#e0803a', desc: 'Blindé, dévastateur de près. Première ligne.' },
-  med: { name: 'MÉDIC', tag: 'MÉD', hp: 70, wps: ['pistol', 'rifle'], col: '#e8e8e4', desc: 'Soigne les équipiers proches (+3 PV/s) et porte des trousses.' },
+  jug: { name: 'LE JUGE', tag: 'JUGE', hp: 140, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#d9b43a', desc: "Chef d'équipe. S'il tombe, le raid est perdu." },
+  fus: { name: 'FUSILIER', tag: 'FUS', hp: 85, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#5fb0d6', desc: 'Soldat polyvalent. Feu nourri à moyenne portée.' },
+  sni: { name: "TIREUR D'ÉLITE", tag: 'TIR', hp: 60, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#9bcf6a', desc: 'Tue de très loin. Fragile : en retrait ou en embuscade.' },
+  bre: { name: 'BRÈCHEUR', tag: 'BRÈ', hp: 105, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#e0803a', desc: 'Blindé, dévastateur de près. Première ligne.' },
+  med: { name: 'MÉDIC', tag: 'MÉD', hp: 70, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#e8e8e4', desc: 'Soigne les équipiers proches (+3 PV/s) et porte des trousses.' },
 };
-const DEF_LOAD = { team: ['fus', 'bre', 'med'], u: { jug: { wp: 'pistol', arm: 'medium', it: ['flash', 'gren', 'med'] }, fus: { wp: 'rifle', arm: 'medium', it: ['gren', 'flash', 'smoke'] }, sni: { wp: 'sniper', arm: 'light', it: ['smoke', 'flash', 'med'] }, bre: { wp: 'shotgun', arm: 'heavy', it: ['gren', 'gren', 'flash'] }, med: { wp: 'pistol', arm: 'light', it: ['med', 'smoke', 'flash'] } } };
-let LOAD = null; try { LOAD = JSON.parse(localStorage.getItem('ebbtideLoad') || 'null'); } catch (e) { }
-if (!LOAD || !LOAD.u || !LOAD.team || !LOAD.u.sni) LOAD = JSON.parse(JSON.stringify(DEF_LOAD));
+const DEF_LOAD = { team: ['fus', 'bre', 'med'], u: {
+  jug: { wp: 'pistol', wp2: 'shotgun', arm: 'medium', it: ['flash', 'gren', 'fire', 'med', 'smoke'] },
+  fus: { wp: 'rifle', wp2: 'shotgun', arm: 'medium', it: ['gren', 'flash', 'smoke', 'fire', 'none'] },
+  sni: { wp: 'sniper', wp2: 'pistol', arm: 'light', it: ['smoke', 'flash', 'med', 'none', 'none'] },
+  bre: { wp: 'shotgun', wp2: 'rifle', arm: 'heavy', it: ['gren', 'gren', 'flash', 'fire', 'none'] },
+  med: { wp: 'pistol', wp2: 'rifle', arm: 'light', it: ['med', 'med', 'smoke', 'flash', 'none'] } } };
+let LOAD = null; try { LOAD = JSON.parse(localStorage.getItem('ebbtideLoad2') || 'null'); } catch (e) { }
+if (!LOAD || !LOAD.u || !LOAD.team) LOAD = JSON.parse(JSON.stringify(DEF_LOAD));
 
 // ---------- Déroulement d'un raid ----------
 const rdKeys = () => keys;
@@ -2390,18 +2400,18 @@ function enterRaid(raid) {
   const R = M.R, I = M.I;
   // acteurs
   const ex = M.exit.x + 1, ey = M.by + M.BH;
-  rdMakeSquad(ex, ey); RD.zoom = 1; RD.armed = null; RD.pj = []; RD.smk = []; RD.pan = { x: 0, y: 0 }; RD.box = null; RD.mouse = null; rdBuildSq();
+  rdMakeSquad(ex, ey); RD.zoom = 1; RD.armed = null; RD.pj = []; RD.smk = []; RD.fires = []; RD.pan = { x: 0, y: 0 }; RD.box = null; RD.mouse = null; rdBuildSq();
   RD.en = []; RD.hs = [];
   const fd = bfsField(M, ex, ey - 2);
   const freeIn = (l, minDist) => { for (let k = 0; k < 80; k++) { const x = l.x + 2 + (R() * (l.w - 4) | 0), y = l.y + 2 + (R() * (l.h - 4) | 0); if (rdPass(M, x, y) && !M.solid[I(x, y)] && Math.hypot(x - ex, y - ey) > (minDist || 0)) return [x + .5, y + .5]; } return null; };
   const rooms = M.leaves.slice(); let far = null, fdm = -1;
   for (const l of rooms) { const p = freeIn(l, 0); if (!p) continue; const dd = fd[Math.floor(p[1]) * M.GW + Math.floor(p[0])]; if (l.id !== M.exitLeaf && dd > fdm) { fdm = dd; far = l; } }
   for (const l of rooms) {
-    const ex0 = l.id === M.exitLeaf; const n = ex0 ? (R() < .35 ? 1 : 0) : (l.w * l.h < 190 ? 1 + (R() < .35 ? 1 : 0) : 2 + (R() < .45 ? 1 : 0));
+    const ex0 = l.id === M.exitLeaf; const n = ex0 ? (R() < .35 ? 1 : 0) : (l.w * l.h < 190 ? 1 + (R() < .45 ? 1 : 0) : 2 + (R() < .6 ? 1 : 0));
     for (let i = 0; i < n; i++) { const p = freeIn(l, ex0 ? 18 : 0); if (!p) continue; const q = R(), tp = (l === far && i === 0 && raid.kind !== 'rescue') ? 'chief' : (q < .42 ? 'punk' : q < .72 ? 'thug' : 'bruiser'); const T = EN[tp]; RD.en.push({ k: 'e', t: tp, x: p[0], y: p[1], a: R() * 6.28, hp: T.hp, maxhp: T.hp, st: 'idle', rt: 0, cd: .5 + R(), tgt: null, last: null, fld: null, fldT: 0, stun: 0, prog: 0, swing: 0, mv: false, skin: SKINS[R() * 4 | 0], room: l.id, wait: 0, hit: 0, ph: R() * 6.28, patrol: R() < .35 ? { ox: p[0], oy: p[1] } : null }); }
   }
   { const cap = Math.round(([10, 14, 18, 24][ACC.diff] + (RD.sq.length > 3 ? 0 : -2)) * (1 + .07 * (raid.lvl || 0) + .08 * LEVEL.n)); while (RD.en.length > cap) { const idx = RD.en.findIndex(e => e.t !== 'chief' && e.t !== 'bruiser'); RD.en.splice(idx < 0 ? 0 : idx, 1); } }
-  { const lv = raid.lvl || 0; RD.lvK = 1 + .05 * lv + .06 * LEVEL.n; RD.dm = .8 * RD.lvK; RD.am = .82 + .02 * lv + .03 * LEVEL.n; RD.stage = 0; const maxD = Math.max(1, fdm);
+  { const lv = raid.lvl || 0; RD.lvK = 1 + .05 * lv + .06 * LEVEL.n; RD.dm = .93 * RD.lvK; RD.am = .88 + .025 * lv + .03 * LEVEL.n; RD.stage = 0; const maxD = Math.max(1, fdm);
     for (const e of RD.en) { const dd = fd[Math.floor(e.y) * M.GW + Math.floor(e.x)], tier = Math.max(0, Math.min(1, dd / maxD)); e.tier = tier; if (e.t === 'punk' && tier > .6 && R() < .5) e.t = 'thug'; else if (e.t === 'thug' && tier > .8 && R() < .4) e.t = 'bruiser'; const T = EN[e.t]; e.hp = e.maxhp = Math.round(T.hp * (1 + .25 * tier) * (1 + .04 * lv + .05 * LEVEL.n)); } }
   const nh = raid.kind === 'rescue' ? 3 : raid.kind === 'mixed' ? 2 : 1;
   const hr = rooms.filter(l => l.id !== M.exitLeaf && l.type !== 'bath').sort(() => R() - .5);
@@ -2415,8 +2425,8 @@ function enterRaid(raid) {
   rdUpdateFog(0);
 }
 function rdMakeUnit(role, x, y, ex) {
-  const L = LOAD.u[role], R = ROLES[role], A = ARM[L.arm] || ARM.medium, w = L.wp && WP[L.wp] ? L.wp : R.wps[0], hp = Math.round(R.hp * A.hp);
-  const u = { k: role === 'jug' ? 'j' : 'a', role, x, y, a: -Math.PI / 2, hp, maxhp: hp, cd: Math.random() * .3, tcd: 0, swing: 0, mv: false, name: R.name, wp: w, arm: L.arm, spd: (role === 'jug' ? 8.2 : 7) * A.spd, inv: { flash: 0, gren: 0, smoke: 0, med: 0 }, kinds: [], sel: role === 'jug', order: null, queue: [], stance: 'follow', flashCd: 0 };
+  const L = LOAD.u[role], R = ROLES[role], A = ARM[L.arm] || ARM.medium, w = L.wp && WP[L.wp] ? L.wp : R.wps[0], hp = Math.round(R.hp * A.hp), wps = [L.wp, L.wp2].filter((q, i, a) => q && WP[q] && a.indexOf(q) === i); if (!wps.length) wps.push(w);
+  const u = { k: role === 'jug' ? 'j' : 'a', role, x, y, a: -Math.PI / 2, hp, maxhp: hp, cd: Math.random() * .3, tcd: 0, swing: 0, mv: false, name: R.name, wp: wps[0], wps, wmode: -1, arm: L.arm, spd: (role === 'jug' ? 8.2 : 7) * A.spd, inv: { flash: 0, gren: 0, smoke: 0, fire: 0, med: 0 }, kinds: [], sel: role === 'jug', order: null, queue: [], stance: 'follow', flashCd: 0 };
   for (const it of L.it) if (ITEMS[it] && it !== 'none') { u.inv[it] += ITEMS[it].c; if (!u.kinds.includes(it)) u.kinds.push(it); }
   return u;
 }
@@ -2475,10 +2485,20 @@ function rdCheck() {
   const en = RD.en.filter(e => e.st !== 'dead' && e.st !== 'arrested').length, hs = RD.hs.filter(h => h.st === 'tied' || h.st === 'fleeing').length;
   if (!en && !hs && !RD.cleared) { RD.cleared = true; rdMsg('BÂTIMENT SÉCURISÉ', 'Retournez à la porte pour sortir', 4); }
 }
+function rdPickWeapon(u, d) {
+  if (u.wps.length < 2) return u.wps[0]; if (u.wmode >= 0) return u.wps[u.wmode % u.wps.length]; let best = u.wps[0], bs = -1;
+  for (const w of u.wps) { const W = WP[w]; let sc = W.dmg / W.cd * Math.max(.2, W.acc - d * .012); if (d > W.rng) sc *= .05; if (w === 'shotgun' && d < 9) sc *= 1.6; if (w === 'sniper' && d > 22) sc *= 2; if (sc > bs) { bs = sc; best = w; } }
+  return best;
+}
+function rdCycleWeapon(u) { if (!u || u.hp <= 0 || u.dead || u.wps.length < 2) return; u.wmode = u.wmode + 1 >= u.wps.length ? -1 : u.wmode + 1; if (u.wmode >= 0) u.wp = u.wps[u.wmode]; u.cd = Math.max(u.cd, .3); rdSqDirty = true; sfx.ui(); }
 function rdAutoFire(u, dt) {
-  const w = WP[u.wp], M = RD.M; u.cd -= dt; let tg = null, td = u.stance === 'ambush' ? Math.min(w.rng, 9) : w.rng;
+  const M = RD.M; u.cd -= dt; const maxR = Math.max(...u.wps.map(w => WP[w].rng)); let tg = null, td = u.stance === 'ambush' ? Math.min(maxR, 9) : maxR;
   for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested' || e.st === 'stun') continue; const d = rdSafe(u, e); if (d < td && rdLos(M, u.x, u.y, e.x, e.y)) { td = d; tg = e; } }
-  if (tg) { const want = Math.atan2(tg.y - u.y, tg.x - u.x); let df = want - u.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; u.a += df * Math.min(1, dt * 14); if (u.cd <= 0 && Math.abs(df) < .5) { u.cd = w.cd * (.95 + Math.random() * .1); rdShoot(u, tg, w.dmg, w.acc, 'f', u.wp); } }
+  if (tg) {
+    const want = Math.atan2(tg.y - u.y, tg.x - u.x); let df = want - u.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; u.a += df * Math.min(1, dt * 14);
+    const nw = rdPickWeapon(u, td); if (nw !== u.wp) { u.wp = nw; u.cd = Math.max(u.cd, .3); rdSqDirty = true; sfx.step(rdPanOf(u.x), .6); } const w = WP[u.wp];
+    if (td <= w.rng && u.cd <= 0 && Math.abs(df) < .5) { u.cd = w.cd * (.95 + Math.random() * .1); rdShoot(u, tg, w.dmg, w.acc, 'f', u.wp); }
+  }
   return tg;
 }
 function rdFlash() {
@@ -2584,15 +2604,25 @@ function rdUpdate(dt) {
   }
   for (const m of RD.sq) if (m.role === 'med' && m.hp > 0 && !m.dead) for (const u of RD.sq) if (u !== m && u.hp > 0 && !u.dead && u.hp < u.maxhp && rdSafe(m, u) < 4.5) u.hp = Math.min(u.maxhp, u.hp + 3 * dt);
   for (const q of RD.smk) q.t += dt; RD.smk = RD.smk.filter(q => q.t < q.life);
+  for (const f of RD.fires) {
+    f.t += dt; f.cr = (f.cr || 0) - dt; if (f.cr <= 0) { f.cr = .25; sfx.crackle(rdPanOf(f.x)); }
+    if (Math.random() < dt * 40) RD.pt.push({ k: 'p', x: f.x + (Math.random() - .5) * f.r * 1.6, y: f.y + (Math.random() - .5) * f.r * 1.6, vx: (Math.random() - .5) * 2, vy: -1 - Math.random() * 3, t: 0, l: .45 });
+    for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested') continue; if (Math.hypot(e.x - f.x, e.y - f.y) < f.r) { e.hp -= 38 * dt; e.burn = .45; e.afterburn = 2.2; e.bx = f.x; e.by = f.y; if (e.st === 'idle') { e.st = 'hunt'; e.last = { x: f.x, y: f.y }; } if (e.hp <= 0) rdKill(e, 0); } }
+    const k = [.5, 1, 1.35, 1.8][ACC.diff]; for (const a of RD.sq) { if (a.hp <= 0 || a.dead) continue; if (Math.hypot(a.x - f.x, a.y - f.y) < f.r) { a.hp -= 16 * dt * k; RD.hurt = a.k === 'j' ? .25 : RD.hurt; rdSqDirty = true; if (a.hp <= 0) rdDown(a, 0); } }
+    for (const h of RD.hs) { if ((h.st === 'tied' || h.st === 'fleeing') && Math.hypot(h.x - f.x, h.y - f.y) < f.r) { h.burnT = (h.burnT || 0) + dt; if (h.burnT > 1.2) { h.st = 'dead'; h.da = 1; rdSplat(h.x, h.y, 10, true); RD.lost++; rdMsg('OTAGE BRÛLÉ', "Pas d'incendiaire près des otages", 3); rdCheck(); } } }
+  }
+  RD.fires = RD.fires.filter(f => f.t < f.life);
   // criminels
   for (const e of RD.en) {
     if (e.st === 'dead' || e.st === 'arrested') continue; const T = EN[e.t]; e.mv = false; if (e.hit > 0) e.hit -= dt; if (e.fl) e.fl -= dt;
     if (e.st === 'stun') { e.stun -= dt; const d = rdSafe(j, e); if (d < 1.7) { e.prog += dt; if (e.prog >= 1) { e.st = 'arrested'; RD.arrests++; rdFloat(e.x, e.y - 1, 'ARRÊTÉ +40', '#6fcf6a'); sfx.cuff(rdPanOf(e.x)); rdCheck(); continue; } } else e.prog = Math.max(0, e.prog - dt * 2); if (e.stun <= 0) { e.st = 'combat'; e.prog = 0; } continue; }
+    if (e.afterburn > 0) { e.afterburn -= dt; e.hp -= 12 * dt; if (e.hp <= 0) { rdKill(e, 0); continue; } }
+    if (e.burn > 0) { e.burn -= dt; const dd = Math.hypot(e.x - e.bx, e.y - e.by) || 1; rdMove(M, e, (e.x - e.bx) / dd * 4.5 * dt, (e.y - e.by) / dd * 4.5 * dt, .42); e.mv = true; e.swing = Math.sin(RD.t * 16); continue; }
     // perception
     let seen = null, sd = 1e9;
     for (const f of rdFriends()) { const d = rdSafe(e, f); if (d > 26) continue; let df = Math.atan2(f.y - e.y, f.x - e.x) - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; const fov = e.st === 'idle' ? 1.05 : 6.3; if ((d < 4.5 || Math.abs(df) < fov) && rdLos(M, e.x, e.y, f.x, f.y) && d < sd) { sd = d; seen = f; } }
     if (seen) {
-      if (e.st === 'idle' || e.st === 'hunt') { e.st = 'combat'; e.rt = .5 + Math.random() * .3; RD.alarm = true; for (const o of RD.en) if (o !== e && o.st === 'idle' && Math.hypot(o.x - e.x, o.y - e.y) < 20) { o.st = 'hunt'; o.last = { x: seen.x, y: seen.y }; o.wait = 0; } if (RD.t > 1) sfx.alarm(); }
+      if (e.st === 'idle' || e.st === 'hunt') { e.st = 'combat'; e.rt = .4 + Math.random() * .25; RD.alarm = true; for (const o of RD.en) if (o !== e && o.st === 'idle' && Math.hypot(o.x - e.x, o.y - e.y) < 20) { o.st = 'hunt'; o.last = { x: seen.x, y: seen.y }; o.wait = 0; } if (RD.t > 1) sfx.alarm(); }
       e.last = { x: seen.x, y: seen.y }; e.seenT = 0; e.tgt = seen;
       const want = Math.atan2(seen.y - e.y, seen.x - e.x); let df = want - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; e.a += df * Math.min(1, dt * 10);
       if (e.rt > 0) e.rt -= dt; else { e.cd -= dt; if (e.cd <= 0 && sd < T.rng) { e.cd = T.cd * (.8 + Math.random() * .5); rdShoot(e, seen, T.dmg * RD.dm * (1 + .15 * (e.tier || 0)), Math.min(.92, T.acc * RD.am * (1 + .12 * RD.stage)), 'e', T.wp); } }
@@ -2625,7 +2655,7 @@ function rdUpdate(dt) {
   // effets
   for (const t of RD.tr) { t.t -= dt; t.flash -= dt; } RD.tr = RD.tr.filter(t => t.t > 0);
   for (const p of RD.pt) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .96; p.vy *= .96; } RD.pt = RD.pt.filter(p => p.t < p.l);
-  for (const p of RD.pj) { p.t += dt; if (!p.landed && p.t >= p.dur) { p.landed = true; p.lt = 0; if (p.k === 'gren') sfx.clink(rdPanOf(p.x1)); if (p.k === 'flash') rdBang(p); } if (p.landed) { p.lt += dt; if (p.k === 'gren' && p.lt >= .9) { rdBoom(p); p.dead = true; } else if (p.k === 'flash') p.dead = true; else if (p.k === 'smoke') { RD.smk.push({ x: p.x1, y: p.y1, t: 0, r: 3.8, life: 11 }); sfx.smoke(rdPanOf(p.x1)); p.dead = true; } } } RD.pj = RD.pj.filter(p => !p.dead);
+  for (const p of RD.pj) { p.t += dt; if (!p.landed && p.t >= p.dur) { p.landed = true; p.lt = 0; if (p.k === 'gren') sfx.clink(rdPanOf(p.x1)); if (p.k === 'flash') rdBang(p); } if (p.landed) { p.lt += dt; if (p.k === 'gren' && p.lt >= .9) { rdBoom(p); p.dead = true; } else if (p.k === 'flash') p.dead = true; else if (p.k === 'smoke') { RD.smk.push({ x: p.x1, y: p.y1, t: 0, r: 3.8, life: 11 }); sfx.smoke(rdPanOf(p.x1)); p.dead = true; } else if (p.k === 'fire') { RD.fires.push({ x: p.x1, y: p.y1, r: 3.4, t: 0, life: 9 }); sfx.molotov(rdPanOf(p.x1)); rdNoise(p.x1, p.y1, 24); RD.alarm = true; const bc = RD.bc, g = bc.createRadialGradient(p.x1 * TS, p.y1 * TS, 0, p.x1 * TS, p.y1 * TS, 3.6 * TS); g.addColorStop(0, 'rgba(8,6,4,.65)'); g.addColorStop(1, 'rgba(8,6,4,0)'); bc.fillStyle = g; bc.fillRect(p.x1 * TS - 4 * TS, p.y1 * TS - 4 * TS, 8 * TS, 8 * TS); p.dead = true; } } } RD.pj = RD.pj.filter(p => !p.dead);
   for (const f of RD.fl) { f.t -= dt; f.y -= dt * .8; } RD.fl = RD.fl.filter(f => f.t > 0);
   for (const m of RD.msgs) m.t -= dt; RD.msgs = RD.msgs.filter(m => m.t > 0);
   RD.shake = Math.max(0, RD.shake - dt * 14); RD.hurt = Math.max(0, RD.hurt - dt); RD.flashT = Math.max(0, RD.flashT - dt);
@@ -2677,7 +2707,7 @@ function rdKey(k, e) {
   if (k === '1' || k === '2' || k === '3' || k === '4') { const i = +k - 1; if (alive(i)) rdSelect([RD.sq[i]], e.shiftKey); }
   else if (k === '5' || k === '0') rdSelect(RD.sq.filter((u, i) => alive(i)), false);
   else if (k === 'tab') { e.preventDefault(); const cur = RD.sq.findIndex(u => u.sel); for (let n = 1; n <= RD.sq.length; n++) { const i = (cur + n + RD.sq.length) % RD.sq.length; if (alive(i)) { rdSelect([RD.sq[i]], false); break; } } }
-  else if (k === 'g') rdArm('gren'); else if (k === 'f') rdArm('flash'); else if (k === 'v') rdArm('smoke'); else if (k === 'b') rdArm('med'); else if (k === 'c') { RD.pan = { x: 0, y: 0 }; RD.zoom = 1; } else if (k === '+' || k === '=') RD.zoom = Math.min(2.2, rdZ() * 1.15); else if (k === '-' || k === '6') RD.zoom = Math.max(.55, rdZ() / 1.15);
+  else if (k === 'g') rdArm('gren'); else if (k === 'f') rdArm('flash'); else if (k === 'v') rdArm('smoke'); else if (k === 'i') rdArm('fire'); else if (k === 'e') { for (const u of RD.sq) if (u.sel) rdCycleWeapon(u); } else if (k === 'b') rdArm('med'); else if (k === 'c') { RD.pan = { x: 0, y: 0 }; RD.zoom = 1; } else if (k === '+' || k === '=') RD.zoom = Math.min(2.2, rdZ() * 1.15); else if (k === '-' || k === '6') RD.zoom = Math.max(.55, rdZ() / 1.15);
   else if (k === 'h') $('rdHelp').style.display = $('rdHelp').style.display === 'flex' ? 'none' : 'flex';
   else if ((e.ctrlKey || e.metaKey) && k === 'a') { e.preventDefault(); rdSelect(RD.sq.filter(u => u.hp > 0 && !u.dead), false); }
   else if (k === 'backspace' || k === 'delete') { for (const u of RD.sq) if (u.sel) { u.order = null; u.queue = []; } rdSqDirty = true; }
@@ -2731,20 +2761,21 @@ const STANCES = ['follow', 'hold', 'ambush'], STN = { follow: 'Suit le juge', ho
 function rdBuildSq() {
   rdSq.innerHTML = ''; RD.sq.forEach((u, i) => {
     const c = document.createElement('div'); c.className = 'sqc'; c.dataset.i = i; const R = ROLES[u.role];
-    c.innerHTML = `<img class="sqp" src="${rdPortrait(u.role, 72)}"><div class="sqx"><div class="sqn"><span><b>${i + 1}</b> <i style="color:${R.col};font-style:normal">${R.name}</i></span><span class="sqh"></span></div><div class="bar"><i></i></div><div class="sqw">${WP[u.wp].n} · armure ${ARM[u.arm].n.toLowerCase()}</div><div class="sqi">${u.kinds.map(k => `<button data-it="${k}" title="${ITEMS[k].d}"></button>`).join('')}${u.k === 'a' ? '<button data-it="stance"></button>' : ''}</div></div>`;
+    c.innerHTML = `<img class="sqp" src="${rdPortrait(u.role, 72)}"><div class="sqx"><div class="sqn"><span><b>${i + 1}</b> <i style="color:${R.col};font-style:normal">${R.name}</i></span><span class="sqh"></span></div><div class="bar"><i></i></div><div class="sqw">${WP[u.wp].n} · armure ${ARM[u.arm].n.toLowerCase()}</div><div class="sqi">${u.wps.length > 1 ? '<button data-it="weapon"></button>' : ''}${u.kinds.map(k => `<button data-it="${k}" title="${ITEMS[k].d}"></button>`).join('')}${u.k === 'a' ? '<button data-it="stance"></button>' : ''}</div></div>`;
     c.onclick = e => { if (e.target.tagName === 'BUTTON') return; rdSelect([u], e.shiftKey); };
-    c.querySelectorAll('button').forEach(b => b.onclick = e => { e.stopPropagation(); const it = b.dataset.it; if (it === 'stance') { u.stance = STANCES[(STANCES.indexOf(u.stance) + 1) % 3]; if (u.stance === 'follow') { u.order = null; u.queue = []; } rdSqDirty = true; return; } if (u.hp <= 0 || u.dead) return; if (it === 'med') { rdUseMed(u); return; } if (!u.sel || RD.sq.filter(v => v.sel).length > 1) rdSelect([u], false); rdArm(it); });
+    c.querySelectorAll('button').forEach(b => b.onclick = e => { e.stopPropagation(); const it = b.dataset.it; if (it === 'weapon') { rdCycleWeapon(u); return; } if (it === 'stance') { u.stance = STANCES[(STANCES.indexOf(u.stance) + 1) % 3]; if (u.stance === 'follow') { u.order = null; u.queue = []; } rdSqDirty = true; return; } if (u.hp <= 0 || u.dead) return; if (it === 'med') { rdUseMed(u); return; } if (!u.sel || RD.sq.filter(v => v.sel).length > 1) rdSelect([u], false); rdArm(it); });
     rdSq.appendChild(c);
   }); rdSqDirty = true;
 }
 let rdSqSig = '';
 function rdSqUpdate() {
-  const sig = RD.sq.map(u => [Math.ceil(u.hp), u.sel, u.inv.flash, u.inv.gren, u.inv.smoke, u.inv.med, u.stance, u.tcd > 0, u.dead].join(',')).join('|') + RD.armed;
+  const sig = RD.sq.map(u => [Math.ceil(u.hp), u.sel, u.inv.flash, u.inv.gren, u.inv.smoke, u.inv.fire, u.inv.med, u.stance, u.tcd > 0, u.dead, u.wp, u.wmode].join(',')).join('|') + RD.armed;
   if (sig === rdSqSig && !rdSqDirty) return; rdSqSig = sig; rdSqDirty = false;
   RD.sq.forEach((u, i) => {
     const c = rdSq.children[i]; if (!c) return; const down = u.hp <= 0 || u.dead; c.classList.toggle('sel', !!u.sel && !down); c.classList.toggle('down', down);
     c.querySelector('.sqh').textContent = down ? 'HORS COMBAT' : Math.ceil(u.hp) + ' PV'; const f = Math.max(0, u.hp / u.maxhp), b = c.querySelector('.bar i'); b.style.width = f * 100 + '%'; b.style.background = u.k === 'j' ? (f > .5 ? '#6fcf6a' : f > .25 ? '#e6b030' : '#e5483b') : '#5fb0d6';
-    for (const bt of c.querySelectorAll('button')) { const it = bt.dataset.it; if (it === 'stance') { bt.textContent = STN[u.stance]; bt.classList.toggle('on', u.stance !== 'follow'); } else { bt.innerHTML = '<img class="ico" src="' + rdIcon(it) + '">' + ITEMS[it].n + ' <b>' + u.inv[it] + '</b> <small>' + ITEMS[it].k + '</small>'; bt.classList.toggle('on', RD.armed === it && !!u.sel); bt.classList.toggle('dis', !u.inv[it] || u.tcd > 0); } }
+    c.querySelector('.sqw').textContent = WP[u.wp].n + (u.wps.length > 1 ? ' (+' + u.wps.filter(q => q !== u.wp).map(q => WP[q].n).join(', ') + ')' : '') + ' · armure ' + ARM[u.arm].n.toLowerCase();
+    for (const bt of c.querySelectorAll('button')) { const it = bt.dataset.it; if (it === 'weapon') { bt.textContent = 'Arme : ' + (u.wmode < 0 ? 'auto' : WP[u.wps[u.wmode]].n); bt.classList.toggle('on', u.wmode >= 0); } else if (it === 'stance') { bt.textContent = STN[u.stance]; bt.classList.toggle('on', u.stance !== 'follow'); } else { bt.innerHTML = '<img class="ico" src="' + rdIcon(it) + '">' + ITEMS[it].n + ' <b>' + u.inv[it] + '</b> <small>' + ITEMS[it].k + '</small>'; bt.classList.toggle('on', RD.armed === it && !!u.sel); bt.classList.toggle('dis', !u.inv[it] || u.tcd > 0); } }
   });
 }
 
@@ -2763,6 +2794,7 @@ function rdRender(t) {
   c.fillStyle = '#0b1626'; c.fillRect(0, 0, rdW, rdH); rdZoomT(c);
   c.drawImage(RD.stat, offx, offy, RD.sw, RD.sh); c.drawImage(RD.blood, offx, offy, RD.sw, RD.sh);
   const sx = x => offx + x * TS, sy = y => offy + y * TS;
+  for (const f of RD.fires) { const k = Math.min(1, f.t / .5, (f.life - f.t) / 1.5), fl = .8 + .2 * Math.sin(t * 14 + f.x), g = c.createRadialGradient(sx(f.x), sy(f.y), 0, sx(f.x), sy(f.y), f.r * TS * 1.1); g.addColorStop(0, `rgba(255,200,80,${.9 * k * fl})`); g.addColorStop(.5, `rgba(255,110,30,${.6 * k * fl})`); g.addColorStop(1, 'rgba(200,40,0,0)'); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.beginPath(); c.arc(sx(f.x), sy(f.y), f.r * TS * 1.1, 0, 6.283); c.fill(); c.globalCompositeOperation = 'source-over'; }
   // trousses
   for (const it of RD.items) if (!it.got) { const x = sx(it.x), y = sy(it.y); c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(x - TS * .6 + 2, y - TS * .45 + 3, TS * 1.2, TS * .9); c.fillStyle = '#e8e8e4'; rrect(c, x - TS * .6, y - TS * .45, TS * 1.2, TS * .9, 3); c.fill(); c.strokeStyle = '#555'; c.stroke(); c.fillStyle = '#d33a2a'; c.fillRect(x - 2, y - TS * .3, 4, TS * .6); c.fillRect(x - TS * .3, y - 2, TS * .6, 4); }
   // portes
@@ -2814,7 +2846,7 @@ function rdRender(t) {
   }
   const zz = rdZ(), mxz = RD.mouse ? (RD.mouse.x - rdW / 2) / zz + rdW / 2 : 0, myz = RD.mouse ? (RD.mouse.y - rdH / 2) / zz + rdH / 2 : 0;
   if (RD.armed && RD.mouse && RD.mouse.on) {
-    const src = RD.sq.find(u => u.sel && u.hp > 0 && !u.dead && u.inv[RD.armed] && u.tcd <= 0) || RD.sq.find(u => u.sel); const R = RD.armed === 'flash' ? 9 : RD.armed === 'smoke' ? 3.8 : 5.5;
+    const src = RD.sq.find(u => u.sel && u.hp > 0 && !u.dead && u.inv[RD.armed] && u.tcd <= 0) || RD.sq.find(u => u.sel); const R = RD.armed === 'flash' ? 9 : RD.armed === 'smoke' ? 3.8 : RD.armed === 'fire' ? 3.4 : 5.5;
     if (src) { c.strokeStyle = 'rgba(232,131,58,.3)'; c.lineWidth = 1.5; c.setLineDash([4, 6]); c.beginPath(); c.arc(sx(src.x), sy(src.y), TS * 16, 0, 6.283); c.stroke(); c.setLineDash([]); }
     c.strokeStyle = RD.armed === 'flash' ? '#9ad0ff' : '#ff8a4a'; c.fillStyle = RD.armed === 'flash' ? 'rgba(154,208,255,.1)' : 'rgba(255,120,60,.12)'; c.lineWidth = 2; c.beginPath(); c.arc(mxz, myz, TS * R, 0, 6.283); c.fill(); c.stroke();
     c.beginPath(); c.moveTo(mxz - 10, myz); c.lineTo(mxz + 10, myz); c.moveTo(mxz, myz - 10); c.lineTo(mxz, myz + 10); c.stroke();
@@ -2902,6 +2934,7 @@ function rdIcon(kind) {
   else if (kind === 'gren') { c.fillStyle = '#4c6a3a'; c.strokeStyle = '#111'; c.lineWidth = 1.5; c.beginPath(); c.ellipse(0, 2, 7, 8, 0, 0, 6.283); c.fill(); c.stroke(); c.fillStyle = '#8a8f94'; c.fillRect(-2.5, -9, 5, 4); c.strokeStyle = '#d9b43a'; c.beginPath(); c.arc(5, -7, 3, 0, 6.283); c.stroke(); c.strokeStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.moveTo(-6, 2); c.lineTo(6, 2); c.moveTo(0, -4); c.lineTo(0, 9); c.stroke(); }
   else if (kind === 'smoke') { c.fillStyle = '#c4cad2'; for (const [x, y, r] of [[-5, 2, 6], [3, 3, 7], [0, -4, 6], [6, -2, 4]]) { c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill(); } c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1; c.beginPath(); c.arc(3, 3, 7, 0, 6.283); c.stroke(); }
   else if (kind === 'med') { c.fillStyle = '#f2f2ee'; c.strokeStyle = '#555'; c.lineWidth = 1.2; rrect(c, -9, -7, 18, 14, 3); c.fill(); c.stroke(); c.fillStyle = '#d33a2a'; c.fillRect(-2, -5, 4, 10); c.fillRect(-5, -2, 10, 4); }
+  else if (kind === 'fire') { c.fillStyle = '#8a4a1a'; c.strokeStyle = '#111'; c.lineWidth = 1.3; c.beginPath(); c.ellipse(0, 5, 5, 6, 0, 0, 6.283); c.fill(); c.stroke(); c.fillStyle = '#ff9a2a'; c.beginPath(); c.moveTo(0, -11); c.quadraticCurveTo(7, -3, 3, 1); c.quadraticCurveTo(0, -2, -3, 1); c.quadraticCurveTo(-7, -3, 0, -11); c.fill(); c.fillStyle = '#ffe070'; c.beginPath(); c.moveTo(0, -6); c.quadraticCurveTo(3, -2, 0, 0); c.quadraticCurveTo(-3, -2, 0, -6); c.fill(); }
   else if (kind === 'mine') { c.fillStyle = '#33373d'; c.strokeStyle = '#111'; c.lineWidth = 1.5; c.beginPath(); c.arc(0, 0, 9, 0, 6.283); c.fill(); c.stroke(); c.fillStyle = '#e5483b'; c.beginPath(); c.arc(0, 0, 3, 0, 6.283); c.fill(); }
   else if (kind === 'shell') { c.fillStyle = '#c9a23a'; c.strokeStyle = '#111'; c.lineWidth = 1.3; c.beginPath(); c.moveTo(-9, -4); c.lineTo(3, -4); c.quadraticCurveTo(10, 0, 3, 4); c.lineTo(-9, 4); c.closePath(); c.fill(); c.stroke(); c.fillStyle = '#7a2a1a'; c.fillRect(-9, -4, 4, 8); }
   return rdIC[kind] = cv.toDataURL();
@@ -2914,7 +2947,8 @@ rdHelp.innerHTML = `<div class="box"><h2>COMMANDES DU RAID</h2><table>
 <tr><td>Clic sur un équipier · 1 2 3 4</td><td>sélectionner (Maj = ajouter) · Tab = suivant · 5 ou double-clic = toute l'équipe · Ctrl+A</td></tr>
 <tr><td>Glisser un cadre</td><td>sélectionner plusieurs équipiers</td></tr>
 <tr><td>Clic gauche ou droit sur le sol</td><td>déplacer la sélection (Maj = ajouter des étapes) · Retour arrière = stop</td></tr>
-<tr><td>F · G · V · B</td><td>Flash · Grenade · Fumigène (puis clic pour lancer) · Trousse de soins (immédiat)</td></tr>
+<tr><td>F · G · V · I · B</td><td>Flash · Grenade · Fumigène · Incendiaire (puis clic pour lancer) · Trousse de soins (immédiat)</td></tr>
+<tr><td>E · bouton « Arme »</td><td>changer d'arme (auto : fusil à pompe de près, fusil de précision de loin)</td></tr>
 <tr><td>Boutons de la carte</td><td>équipement de chacun · poste : suit le juge / tient la position / embuscade</td></tr>
 <tr><td>Z Q S D · W A S D · flèches</td><td>déplacer le juge directement</td></tr>
 <tr><td>Molette · + et - · bord de l'écran · C</td><td>zoom · zoom · faire défiler la vue · recentrer (et zoom normal)</td></tr>
@@ -2928,7 +2962,7 @@ const rdHelpB = document.createElement('button'); rdHelpB.id = 'rdHelpB'; rdHelp
 let briefRaid = null, prePause = false;
 function openBriefing(raid) { briefRaid = raid; prePause = opts.paused; opts.paused = true; refreshTop(); buildBrief(); rdBrief.style.display = 'flex'; }
 function closeBriefing() { rdBrief.style.display = 'none'; briefRaid = null; opts.paused = prePause; refreshTop(); }
-function startBrief() { const r = briefRaid; try { localStorage.setItem('ebbtideLoad', JSON.stringify(LOAD)); } catch (e) { } closeBriefing(); opts.paused = false; refreshTop(); enterRaid(r); }
+function startBrief() { const r = briefRaid; try { localStorage.setItem('ebbtideLoad2', JSON.stringify(LOAD)); } catch (e) { } closeBriefing(); opts.paused = false; refreshTop(); enterRaid(r); }
 function rdBriefKey(k, e) { if (k === 'escape') closeBriefing(); else if (k === 'enter' && !(e.target && /^(SELECT|BUTTON|INPUT)$/.test(e.target.tagName))) startBrief(); }
 function buildBrief() {
   const r = briefRaid, hint = r.kind === 'rescue' ? 'Otages à libérer. Pas de grenade à moins de 5 m d\'un otage. Fumigène + flash pour approcher. Les otages sont exécutés si l\'alarme dure.' : r.kind === 'arrest' ? 'Un chef lourdement armé commande la planque. Brècheur et grenades devant, tireur d\'élite en embuscade au fond de la pièce.' : 'Otages ET chef : sécurisez les otages d\'abord, puis capturez le chef.';
@@ -2937,10 +2971,11 @@ function buildBrief() {
   for (const role of ['jug', 'fus', 'sni', 'bre', 'med']) {
     const R = ROLES[role], L = LOAD.u[role], on = role === 'jug' || LOAD.team.includes(role), A = ARM[L.arm], W = WP[L.wp];
     h += `<div class="bfc ${on ? 'on' : ''}" data-r="${role}"><img class="bfp" src="${rdPortrait(role, 96)}"><label class="bft"><input type="checkbox" data-k="team" ${on ? 'checked' : ''} ${role === 'jug' ? 'disabled' : ''}> <b style="color:${R.col}">${R.name}</b></label><p>${R.desc}</p>`;
-    h += `<label>Arme <select data-k="wp">${R.wps.map(k => `<option value="${k}" ${k === L.wp ? 'selected' : ''}>${WP[k].n}</option>`).join('')}</select></label>`;
+    h += `<label>Arme 1 <select data-k="wp">${R.wps.map(k => `<option value="${k}" ${k === L.wp ? 'selected' : ''}>${WP[k].n}</option>`).join('')}</select></label>`;
+    h += `<label>Arme 2 <select data-k="wp2"><option value="none">Aucune</option>${R.wps.map(k => `<option value="${k}" ${k === L.wp2 ? 'selected' : ''}>${WP[k].n}</option>`).join('')}</select></label>`;
     h += `<label>Armure <select data-k="arm">${opt(ARM, L.arm, k => ARM[k].n)}</select></label>`;
-    for (let i = 0; i < 3; i++) h += `<label>Équipement ${i + 1} <select data-k="it${i}">${opt(ITEMS, L.it[i] || 'none', k => ITEMS[k].n)}</select></label>`;
-    h += `<div class="bfs">${Math.round(R.hp * A.hp)} PV · vitesse ${Math.round(A.spd * 100)} % · dégâts ${W.dmg} · portée ${W.rng}</div></div>`;
+    for (let i = 0; i < 5; i++) h += `<label>Équipement ${i + 1} <select data-k="it${i}">${opt(ITEMS, L.it[i] || 'none', k => ITEMS[k].n)}</select></label>`;
+    h += `<div class="bfs">${Math.round(R.hp * A.hp)} PV · vitesse ${Math.round(A.spd * 100)} % · ${W.n} (dégâts ${W.dmg}, portée ${W.rng})${WP[L.wp2] ? ' · ' + WP[L.wp2].n + ' (dégâts ' + WP[L.wp2].dmg + ', portée ' + WP[L.wp2].rng + ')' : ''}</div></div>`;
   }
   h += `</div><h3 class="bfx">MENACES</h3><div class="bfr bft2">${[['punk', 'Voyou', 'Pistolet, réagit vite. Crête rouge.'], ['thug', 'Tueur', 'Pistolet-mitrailleur, cagoule noire.'], ['bruiser', 'Brute', 'Fusil à pompe et gilet : mortel de près.'], ['chief', 'Chef', 'Très résistant, crête jaune. À capturer ou abattre.']].map(([k, n, d]) => `<div class="bfe"><img class="bfp s" src="${rdPortrait(k, 64)}"><div><b>${n}</b><br><small>${d}</small></div></div>`).join('')}</div><div class="bfb"><button class="big" id="bfGo">LANCER LE RAID</button><button class="ib" id="bfNo">Annuler (Échap)</button></div></div>`;
   rdBrief.innerHTML = h;
@@ -2949,7 +2984,7 @@ function buildBrief() {
     card.querySelectorAll('select,input').forEach(el => el.onchange = () => {
       const k = el.dataset.k, L = LOAD.u[role];
       if (k === 'team') { if (el.checked) { if (LOAD.team.filter(x => x !== role).length >= 3) { el.checked = false; return; } if (!LOAD.team.includes(role)) LOAD.team.push(role); } else LOAD.team = LOAD.team.filter(x => x !== role); }
-      else if (k === 'wp') L.wp = el.value; else if (k === 'arm') L.arm = el.value; else if (k.startsWith('it')) L.it[+k[2]] = el.value;
+      else if (k === 'wp') L.wp = el.value; else if (k === 'wp2') L.wp2 = el.value === 'none' ? null : el.value; else if (k === 'arm') L.arm = el.value; else if (k.startsWith('it')) L.it[+k[2]] = el.value;
       const sc = rdBrief.scrollTop; buildBrief(); rdBrief.scrollTop = sc;
     });
   });
