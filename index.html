@@ -1636,11 +1636,11 @@ function fireAbility(k, x, z) {
   const a = ABIL[k]; if (res.sp < a.cost) { sfx.err(); return; }
   res.sp -= a.cost; cds[k] = a.cd; armed = null; refreshHint();
   if (k === 'mortar') {
-    for (let i = 0; i < 3; i++) { const sx = x + (r2() - .5) * 18, sz = z + (r2() - .5) * 18; timers.push({ t: .35 + i * .45, fn: () => { killRadius(sx, sz, 13); explosion(sx, sz, 13); } }); }
+    for (let i = 0; i < 3; i++) { const sx = x + (r2() - .5) * 18, sz = z + (r2() - .5) * 18; launchProj(sx, 90, sz, sx, sz, .35 + i * .45, 'bomb'); timers.push({ t: .35 + i * .45, fn: () => { killRadius(sx, sz, 13); explosion(sx, sz, 13); } }); }
     sfx.cannon();
   } else if (k === 'strike') {
     const dirx_ = Math.cos(cam.yaw + 1.2), dirz_ = -Math.sin(cam.yaw + 1.2);
-    for (let i = 0; i < 9; i++) { const sx = x + dirx_ * (i - 4) * 9 + (r2() - .5) * 4, sz = z + dirz_ * (i - 4) * 9 + (r2() - .5) * 4; timers.push({ t: .8 + i * .17, fn: () => { killRadius(sx, sz, 11); explosion(sx, sz, 12); } }); }
+    for (let i = 0; i < 9; i++) { const sx = x + dirx_ * (i - 4) * 9 + (r2() - .5) * 4, sz = z + dirz_ * (i - 4) * 9 + (r2() - .5) * 4; launchProj(sx, 110, sz, sx, sz, .8 + i * .17, 'bomb'); timers.push({ t: .8 + i * .17, fn: () => { killRadius(sx, sz, 11); explosion(sx, sz, 12); } }); }
     tone(300, 900, 1.2, .15, 'sawtooth');
   } else if (k === 'decoy') {
     decoys.push({ x, z, t: 18 });
@@ -1682,8 +1682,8 @@ function useItemAt(x, z) {
   cand.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z)); const u = cand[0], I = ITN[kind];
   let dx = x - u.x, dz = z - u.z; const d = Math.hypot(dx, dz) || 1; if (d > I.range) { dx *= I.range / d; dz *= I.range / d; x = u.x + dx; z = u.z + dz; }
   u.inv[kind]--; u.tcd = I.cd; u.aim = Math.atan2(dx, dz); selDirty = true;
-  if (kind === 'gren') { addTracer(u.x, 2, u.z, x, 1, z, [255, 160, 60, 2]); timers.push({ t: .9, fn: () => { killRadius(x, z, I.r); explosion(x, z, 6); } }); tone(500, 300, .1, .1, 'square'); }
-  else if (kind === 'shell') { addTracer(u.x, 2.6, u.z, x, 1, z, [255, 210, 120, 3]); sfx.cannon(); timers.push({ t: 1.2, fn: () => { killRadius(x, z, I.r); explosion(x, z, 10); } }); }
+  if (kind === 'gren') { addTracer(u.x, 2, u.z, x, 1, z, [255, 160, 60, 2]); launchProj(u.x, 2, u.z, x, z, .9, 'gren'); timers.push({ t: .9, fn: () => { killRadius(x, z, I.r); explosion(x, z, 6); } }); tone(500, 300, .1, .1, 'square'); }
+  else if (kind === 'shell') { addTracer(u.x, 2.6, u.z, x, 1, z, [255, 210, 120, 3]); sfx.cannon(); launchProj(u.x, 2.6, u.z, x, z, 1.2, 'shell'); timers.push({ t: 1.2, fn: () => { killRadius(x, z, I.r); explosion(x, z, 10); } }); }
   else if (kind === 'inc') { addTracer(u.x, 2, u.z, x, 1, z, [255, 150, 40, 2]); tone(420, 260, .12, .1, 'square'); paint(x, z, 7, 2, 40); for (let i = 0; i < 12; i++) timers.push({ t: .8 + i * .5, fn: () => { killRadius(x, z, I.r); for (let q = 0; q < 7; q++) addP('fire', x + (r2() - .5) * I.r * 1.6, 1, z + (r2() - .5) * I.r * 1.6, (r2() - .5), 3 + r2() * 3, (r2() - .5), .6, 1.7); } }); }
   else if (kind === 'mine') { if (mines.length >= 14) mines.shift(); mines.push({ x, z }); sfx.ui(); tone(300, 200, .15, .1, 'square'); }
   return true;
@@ -3279,6 +3279,7 @@ function uPush(img, x, y, z, yaw, wm, hm, py, depthBias, walk, ph) {
   const G0 = proj(x + .4, 0, z + .4); usprList.push({ img, C, Pf, Pr, py, d: C[2] + (depthBias || 0), walk, ph, sh: G0, sr: Math.max(wm, hm * .6) * .5, y });
 }
 function drawUnitSprites(t) {
+  drawProjs();
   if (!UNITSPR()) return;
   usprList.length = 0;
   for (const u of units) {
@@ -3326,6 +3327,28 @@ function updateRoof(dt) {
     const dx = u.x - bx, dz = u.z - bz, l = Math.hypot(dx, dz) || 1, t = Math.min((w / 2 + 3) / (Math.abs(dx / l) || 1e-3), (d / 2 + 3) / (Math.abs(dz / l) || 1e-3)), ex = bx + dx / l * t, ez = bz + dz / l * t;
     if (Math.hypot(u.x - ex, u.z - ez) < 5) { u.onRoof = true; u.rbi = bi; u.roofB = null; u.order = null; u.hold = true; u.follow = false; u.roofH = h; }
     else { if (!u.order || u.order.rf !== bi) u.order = { x: ex, z: ez, fld: buildUnitField(ex, ez), rf: bi }; u.follow = false; u.hold = false; }
+  }
+}
+
+// ---------- Projectiles visibles (obus, grenades, bombes) ----------
+const PROJ = []; let projT = performance.now();
+function launchProj(x0, y0, z0, x1, z1, dur, kind) { PROJ.push({ x0, y0, z0, x1, z1, dur: Math.max(.25, dur), t: 0, kind, trail: 0 }); }
+function projPos(p, k) {
+  const x = p.x0 + (p.x1 - p.x0) * k, z = p.z0 + (p.z1 - p.z0) * k;
+  if (p.kind === 'bomb') return [p.x1, p.y0 * (1 - k * k) + .5, p.z1];
+  const dist = Math.hypot(p.x1 - p.x0, p.z1 - p.z0), arc = Math.min(40, 5 + dist * (p.kind === 'shell' ? .3 : .22));
+  return [x, p.y0 * (1 - k) + 1 * k + 4 * arc * k * (1 - k), z];
+}
+function drawProjs() {
+  const now = performance.now(), dt = Math.min(.1, (now - projT) / 1000); projT = now;
+  for (let i = PROJ.length - 1; i >= 0; i--) {
+    const p = PROJ[i]; p.t += dt; const k = Math.min(1, p.t / p.dur); if (k >= 1) { PROJ.splice(i, 1); continue; }
+    const [x, y, z] = projPos(p, k), [px, py, pz] = projPos(p, Math.max(0, k - .04)), a = proj(x, y, z), b = proj(px, py, pz), g = proj(x, 0, z); if (!a || !b) continue;
+    const ppm = ppmOf(a[2]), L = Math.max(5, (p.kind === 'bomb' ? 3.2 : p.kind === 'shell' ? 2.2 : 1.1) * ppm), dx = a[0] - b[0], dy = a[1] - b[1], dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl;
+    if (g) { fx.globalAlpha = .35 * (.4 + .6 * k); fx.fillStyle = '#000'; const r = (p.kind === 'bomb' ? 2.2 : 1.4) * ppm * (1.4 - .5 * k); fx.beginPath(); fx.ellipse(g[0], g[1], r, r * Math.sin(cam.pitch), 0, 0, 6.283); fx.fill(); fx.globalAlpha = 1; }
+    fx.lineCap = 'round'; fx.strokeStyle = 'rgba(20,20,22,.95)'; fx.lineWidth = Math.max(2, (p.kind === 'bomb' ? 1.1 : p.kind === 'shell' ? .8 : .5) * ppm); fx.beginPath(); fx.moveTo(a[0] - ux * L, a[1] - uy * L); fx.lineTo(a[0], a[1]); fx.stroke();
+    fx.strokeStyle = p.kind === 'bomb' ? 'rgba(255,170,90,.95)' : 'rgba(255,225,160,.95)'; fx.lineWidth = Math.max(1.5, .35 * ppm); fx.beginPath(); fx.moveTo(a[0], a[1]); fx.lineTo(a[0] - ux * L * .22, a[1] - uy * L * .22); fx.stroke();
+    p.trail -= dt; if (p.trail <= 0) { p.trail = p.kind === 'bomb' ? .03 : .045; addP('smoke', x, y, z, 0, .2, 0, 1.1, p.kind === 'bomb' ? 2.2 : 1.3); }
   }
 }
 // ---------- Horde en sprites ----------
