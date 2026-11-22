@@ -97,6 +97,14 @@ canvas{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
 #acc input[type=checkbox]{width:22px;height:22px}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .hc{--bg:rgba(0,0,0,.98);--ln:#fff;--dim:#e6e6e6}
+/* thème interface (référence) */
+:root{--bg:rgba(24,22,20,.9);--ln:rgba(255,255,255,.12)}
+#top{background:linear-gradient(rgba(34,31,28,.94),rgba(20,18,17,.94));border-bottom:1px solid rgba(255,255,255,.14);font-weight:600;letter-spacing:.14em}
+#wheelP,#selP,#ordP,#fobP{background:rgba(24,22,20,.9);border:1px solid rgba(255,255,255,.1);border-top:1px solid rgba(255,255,255,.22);box-shadow:none;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+.card{background:rgba(32,29,26,.92);border:1px solid rgba(255,255,255,.1);clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,0 100%)}
+.card.sel{border-color:#9bd18b}
+#top .ib,#top button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);font-weight:600;letter-spacing:.12em;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+#selP h4,#ordP h4,#fobP h4,#wheelP h4{letter-spacing:.2em;font-weight:700;color:#b9b2a6;border-bottom:1px solid rgba(255,255,255,.08)}
 .hc #top,.hc .panel{border-color:#fff}.hc .ob,.hc .sup,.hc .pb,.hc .card,.hc #tbar button{border-color:#fff}
 #ohelp{position:fixed;z-index:26;inset:0;background:rgba(5,6,8,.88);display:none;align-items:center;justify-content:center}
 #ohelp .box{max-width:760px;max-height:92vh;overflow:auto;padding:20px 26px;background:#14171d;border:1px solid var(--ln);border-top:3px solid var(--o)}
@@ -674,8 +682,8 @@ void main(){
   col=mix(col,vec3(.36,.355,.33)*(.86+.2*n2)*(1.-.3*step(.485,max(sg.x,sg.y))),pl);
   vec2 hz=abs(p-vec2(0.,-33.));
   if(hz.x<7.&&hz.y<5.&&pl<.5) col=mix(col,vec3(.9,.7,.1)*step(.5,fract((p.x+p.y)/2.2)),.35);
-  float shd=max(step(.5,B(p+vec2(4.,3.))),step(.5,B(p+vec2(8.,6.))*.0+B(p+vec2(7.,5.5))));
-  if(b0<.5&&pl<.5) col*=1.-.42*shd*(1.-uNight);
+  float shd=max(max(step(.5,B(p+vec2(4.,3.))),step(.5,B(p+vec2(7.,5.5)))),max(step(.5,B(p+vec2(11.,8.5)))*.85,step(.5,B(p+vec2(16.,12.)))*.6));
+  if(b0<.5&&pl<.5) col*=1.-.3*shd*(1.-uNight);
   if(pl<.5&&b0<.5){
     float cr=abs(vn(p*.55)-.5); col*=1.-.55*smoothstep(.022,.0,cr);
     float cr2=abs(vn(p*1.7+9.)-.5); col*=1.-.4*smoothstep(.016,.0,cr2);
@@ -698,6 +706,8 @@ void main(){
     if(uBiome>.5&&uBiome<1.5){ vec3 sn=vec3(.86,.9,.96)*(.93+.1*n2); col=mix(sn,c0*1.8+.1,clamp(rd*.55*step(.45,vn(p*1.3))+step(.5,b0)*.9,0.,1.)); col=mix(col,vec3(.12,.1,.09),smoothstep(.55,.9,m.b)*.9); }
     else if(uBiome>1.5&&uBiome<2.5){ float dn=vn(p*.04)+.5*vn(p*.13); vec3 sd=mix(vec3(.74,.57,.35),vec3(.9,.73,.47),dn)*(.92+.1*n2)*(.92+.1*n3); col=mix(sd,c0*1.4+vec3(.2,.15,.08),clamp(rd*.4+step(.5,b0)*.8,0.,1.)); col=mix(col,vec3(.1,.08,.06),smoothstep(.55,.9,m.b)*.9); }
     else if(uBiome>2.5){ col=c0*vec3(.8,.92,1.1)*1.1; }
+    if(uBiome>.5&&uBiome<2.5){ float gx=vn(p*.05+vec2(.7,0.))-vn(p*.05-vec2(.7,0.)); col*=1.+gx*(1.-rd)*1.1;
+      float dx=abs(mod(p.x+25.,50.)-25.), dz=abs(mod(p.y+25.,50.)-25.); float tr=max(smoothstep(.32,0.,abs(dx-2.1)),smoothstep(.32,0.,abs(dz-2.1)))*step(min(dx,dz),4.)*(.7+.3*vn(p*3.)); col*=1.-.2*tr; }
     col=mix(col,c0,pl); }
   o=vec4(fogit(col,vW),1.);
 }`);
