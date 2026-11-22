@@ -177,6 +177,13 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
 .touch #smapHint{display:none}
 #lvl{position:fixed;z-index:20;inset:0;background:rgba(8,9,12,.92);display:none;align-items:center;justify-content:center;text-align:center}
 #lvl .box{max-width:560px;padding:28px 34px;border:1px solid var(--ln);border-top:3px solid var(--o);background:rgba(15,17,22,.97)}#lvl h1{margin:0 0 10px;font-size:30px;letter-spacing:.18em;color:var(--o)}#lvl p{font-size:15px;line-height:1.7;color:#cfcac0}
+#ars{display:none;position:fixed;inset:0;z-index:14;background:rgba(5,8,14,.96);overflow:auto;justify-content:center;align-items:flex-start}
+.arsb{max-width:1080px;width:100%;padding:16px 18px 40px}.arsh{display:flex;justify-content:space-between;align-items:center}.arsh h2{margin:0;color:var(--o);letter-spacing:.18em;font-size:22px}
+.arsh .ib{background:#242933;border:1px solid var(--ln);color:var(--tx);padding:8px 16px;font:inherit;cursor:pointer}
+.arsb h3{margin:20px 0 8px;color:#9ad0ff;letter-spacing:.18em;font-size:13px;text-transform:uppercase}
+.arst{border-collapse:collapse;width:100%;font-size:12px}.arst th{text-align:left;color:#8fa0b3;font-weight:600;padding:4px 8px;border-bottom:1px solid #2a3647}.arst td{padding:5px 8px;border-bottom:1px solid #18212e;color:#cfd6e0;vertical-align:top}.arst tr.lk td{opacity:.55}
+.arsm{background:#10161f;border:1px solid #2a3647;padding:10px 14px;margin-bottom:10px}.arsm.cur{border-color:var(--o)}.arsm h4{margin:0 0 4px;color:var(--o);letter-spacing:.08em}.arsm p{margin:0 0 8px;font-size:12px;color:#aab3c0}
+.touch #bArs{display:none}
 /* raid sur téléphone */
 .touch #rdSq{left:4px;bottom:4px;gap:4px;align-items:flex-end;max-width:calc(100vw - 170px);overflow-x:auto}
 .touch .sqc{width:auto;min-width:64px;padding:3px 5px;flex:none}
@@ -195,6 +202,7 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
 .touch #rdQuit{right:max(12px,env(safe-area-inset-right))}.touch #rdHelpB{right:max(96px,calc(env(safe-area-inset-right) + 84px))}
 #rdCenter{right:182px;top:10px;padding:7px 12px;background:rgba(20,22,27,.9);border:1px solid var(--ln);font-size:11px}.touch #rdCenter{right:max(176px,calc(env(safe-area-inset-right) + 164px));top:6px;padding:6px 9px}
 body:not(.touch) .sqi button{flex:1 1 44%;min-width:0;text-align:left}
+@media (max-width:1400px){#top{gap:9px;font-size:11px;padding:0 8px}#top .ib{padding:4px 6px}#top b{font-size:13px}}
 #vig{position:fixed;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,.38) 100%)}
 .inraid #vig{display:none}
 #gl{filter:contrast(1.14) saturate(1.0) brightness(.96)}
@@ -207,7 +215,7 @@ body:not(.touch) .sqi button{flex:1 1 44%;min-width:0;text-align:left}
 <div id="top">
   <span>Ebbtide · FOB Alpha</span>
   <span>Vague <b id="tW">0/10</b></span>
-  <span>Criminels <b id="tZ">0</b></span>
+  <span><i id="tFoe" style="font-style:normal">Criminels</i> <b id="tZ">0</b></span>
   <span>Éliminés <b id="tK">0</b></span>
   <span>Appui <b id="tS">0</b></span>
   <span>Temps <b id="tT">00:00</b></span>
@@ -217,6 +225,7 @@ body:not(.touch) .sqi button{flex:1 1 44%;min-width:0;text-align:left}
   <button class="ib" id="bPause">Pause</button>
   <button class="ib" id="bTod">Crépuscule</button>
   <button class="ib" id="bMap">Carte (M)</button>
+  <button class="ib" id="bArs">Arsenal (U)</button>
   <button class="ib" id="bHelp">Aide (?)</button>
   <button class="ib" id="bAcc" aria-label="Accessibilité">Accessibilité</button>
   <button class="ib" id="bSnd">Son</button>
@@ -243,6 +252,7 @@ body:not(.touch) .sqi button{flex:1 1 44%;min-width:0;text-align:left}
 <tr><td>6 7 8 9 0</td><td>appeler des renforts</td></tr>
 <tr><td>Bord de l'écran · C · molette</td><td>faire défiler la vue · recentrer sur le juge · zoom ; Z Q S D déplace le juge</td></tr>
 <tr><td>Entrée · X</td><td>entrer dans un bâtiment marqué (raid)</td></tr>
+<tr><td>U</td><td>arsenal et renseignement : armes débloquées, menaces de la mégapole</td></tr>
 <tr><td>M</td><td>carte stratégique : zoomer, repérer les positions à capturer, envoyer le juge ou l'équipe, placer un repère</td></tr>
 <tr><td>Échap · P · O · V · N</td><td>annuler/pause · pause · son · vitesse · jour/nuit</td></tr>
 <tr><td>Tactile</td><td>toucher une unité = la choisir · toucher le sol = la déplacer · pouce gauche = bouger le juge · pincer = zoom · deux doigts = faire défiler la vue · bouton Centrer</td></tr>
@@ -308,7 +318,7 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
 let seed = 12345;
 const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-const LEVEL = { n: 0, seed: 0, waves: 2 };
+const LEVEL = { n: 0, seed: 0, waves: 3 };
 const r2 = () => Math.random();
 
 const P = {
@@ -445,10 +455,10 @@ function killAgent(i) {
   S.kills++;
 }
 function killRadius(x, z, r) {
-  const rr = r * r; let k = 0;
+  const rr = r * r; let k = 0; const KP = KILLP();
   for (let i = 0; i < N;) {
     const dx = pos[2 * i] - x, dz = pos[2 * i + 1] - z;
-    if (dx * dx + dz * dz < rr) { killAgent(i); k++; } else i++;
+    if (dx * dx + dz * dz < rr && (KP >= 1 || r2() < KP)) { killAgent(i); k++; } else i++;
   }
   return k;
 }
@@ -461,7 +471,7 @@ function clearCorpses(x, z, r) {
   }
   S.corpseDirty = true;
 }
-function addBudget(cell, v) { if (cell < 0 || cell >= DG * DG) return; if (budget[cell] === 0) budgetList.push(cell); budget[cell] = Math.min(60000, budget[cell] + v); }
+function addBudget(cell, v) { if (cell < 0 || cell >= DG * DG) return; if (budget[cell] === 0) budgetList.push(cell); budget[cell] = Math.min(60000, budget[cell] + v * KILLP()); }
 function budgetAt(x, z, k) {
   const cx = dcell(x), cz = dcell(z), each = Math.floor(k / 9), rem = k - each * 9;
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
@@ -785,7 +795,7 @@ void main(){
   vW=w; gl_Position=uVP*vec4(w,1.);
 }`.replace('uniform mat4 uVP;', 'uniform float uTime; uniform mat4 uVP;'),
 COMMON.replace('uniform float uAmb, uNight, uFogK, uCamD, uTime;', 'uniform float uAmb, uNight, uFogK, uCamD;') + `
-in vec2 vUv; in float vR; in float vPh; in vec3 vW; out vec4 o;
+in vec2 vUv; in float vR; in float vPh; in vec3 vW; out vec4 o; uniform float uFac;
 void main(){
   vec2 p=vec2(vUv.x-.5,vUv.y);
   float sw=sin(vPh);
@@ -796,7 +806,7 @@ void main(){
   bool head=length((p-vec2(lean*1.3,.845))*vec2(1.,.9))<.095;
   float ay=.62+.05*sin(vPh+1.);
   bool arm=abs(p.y-ay-(abs(p.x)-.12)*.45)<.034&&abs(p.x)>.11&&abs(p.x)<.38;
-  bool crest=fract(vR*3.7)<.35&&abs(p.x-lean*1.3)<.028&&p.y>.9&&p.y<1.01;
+  bool crest=uFac<.5&&fract(vR*3.7)<.35&&abs(p.x-lean*1.3)<.028&&p.y>.9&&p.y<1.01;
   bool gun=p.y>.575&&p.y<.62&&p.x>.1&&p.x<.34;
   if(!(leg||body||head||arm||crest||gun)) discard;
   float jk=fract(vR*5.);
@@ -805,6 +815,7 @@ void main(){
   vec3 pants=mix(vec3(.12,.14,.2),vec3(.2,.17,.12),fract(vR*17.))*(.8+.5*fract(vR*23.));
   vec3 skin=mix(vec3(.86,.66,.52),vec3(.42,.28,.2),fract(vR*3.));
   vec3 c=head?skin:(body?shirt:(arm?shirt*.9:pants));
+  if(uFac>.5){ float mm=fract(vR*13.); vec3 metal=uFac<1.5?vec3(.40,.43,.48):uFac<2.5?vec3(.62,.68,.74):vec3(.13,.1,.2); c=head?metal*1.15:(body?metal*(.75+.5*mm):(arm?metal*.9:vec3(.1,.11,.13))); float eye=step(abs(p.y-.86),.028)*step(abs(p.x-lean*1.3),.06)*(head?1.:0.); vec3 ec=uFac<1.5?vec3(1.,.12,.06):uFac<2.5?vec3(.2,.9,1.):vec3(.9,.2,1.); c=mix(c,ec,eye); c+=ec*eye*.9; if(uFac>2.5&&body&&abs(p.x-lean*(p.y-.34)*2.)<.03) c+=vec3(.25,.9,1.)*.45; }
   if(crest) c=fract(vR*9.)<.5?vec3(.95,.18,.1):vec3(.95,.8,.15);
   if(gun) c=vec3(.07,.07,.08);
   if(head&&fract(vR*2.3)<.3&&p.y<.86) c=vec3(.06,.06,.07);
@@ -817,7 +828,7 @@ void main(){
 const U = (p, n) => gl.getUniformLocation(p, n);
 const COMMON_U = ['uAmb', 'uNight', 'uFogK', 'uCamD', 'uTint', 'uFog', 'uEye', 'uVP'];
 function locs(p, extra) { const o = {}; for (const n of COMMON_U.concat(['uTime'], extra || [])) o[n] = U(p, n); return o; }
-const LG = locs(pGround, ['uCorpse', 'uMarks', 'uBlock', 'uL']), LB = locs(pBuild), LW = locs(pWall), LX = locs(pBox), LZ = locs(pZomb, ['uCorpse', 'uRight', 'uSize']);
+const LG = locs(pGround, ['uCorpse', 'uMarks', 'uBlock', 'uL']), LB = locs(pBuild), LW = locs(pWall), LX = locs(pBox), LZ = locs(pZomb, ['uCorpse', 'uRight', 'uSize', 'uFac']);
 
 // géométries
 const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad);
@@ -1047,7 +1058,7 @@ function render(t) {
   const sc = Math.max(1, cam.dist / 520);
   common(LZ, pZomb);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, corpseTex); gl.uniform1i(LZ.uCorpse, 0);
-  gl.uniform3f(LZ.uRight, right[0], 0, right[2]); gl.uniform2f(LZ.uSize, 1.15 * sc, 1.95 * sc);
+  gl.uniform1f(LZ.uFac, LEVEL.n); gl.uniform3f(LZ.uRight, right[0], 0, right[2]); gl.uniform2f(LZ.uSize, 1.15 * sc, 1.95 * sc);
   gl.bindVertexArray(vaoZomb); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, N);
 }
 let lastMk = 0, mkForce = false;
@@ -1273,6 +1284,10 @@ const sfx = {
     const t = AU.ctx.currentTime, fr = far || 0, v = (vol == null ? 1 : vol) * (1 - fr * .55), p = pt || 1, lp = fr > .15 ? 7500 - fr * 6000 : 0, w = .55 + fr * .9;
     if (kind === 'shotgun') { auNz(t, .02, 'highpass', 3500, 1500, .6, .6 * v, pan, 0, lp); auNz(t, .22, 'lowpass', 2600 * p, 160, .5, .9 * v, pan, w, lp); auOsc(t, 'sine', 95 * p, 32, .34, .95 * v, pan, 0, lp); auNz(t + .03, .9, 'lowpass', 900, 150, .4, .3 * v, pan, w * 1.5, lp); auNz(t + .55, .05, 'highpass', 2800, 2200, .8, .1 * v, pan, w); }
     else if (kind === 'sniper') { auNz(t, .035, 'highpass', 4500, 2000, .6, 1 * v, pan, 0, lp); auNz(t, .25, 'bandpass', 2200 * p, 300, .7, .6 * v, pan, w, lp); auOsc(t, 'sine', 160 * p, 48, .3, .9 * v, pan, 0, lp); auNz(t + .02, 1.2, 'lowpass', 1400, 120, .4, .3 * v, pan, w * 1.8, lp); auOsc(t + .04, 'triangle', 70, 38, .8, .3 * v, pan, w, lp); }
+    else if (kind === 'ap') { auNz(t, .02, 'highpass', 2600, 1500, .6, .6 * v, pan, 0, lp); auNz(t, .12, 'bandpass', 1800 * p, 500, 1, .5 * v, pan, w * .7, lp); auOsc(t, 'triangle', 190 * p, 60, .14, .6 * v, pan, 0, lp); auNz(t + .01, .4, 'lowpass', 1300, 200, .5, .2 * v, pan, w, lp); }
+    else if (kind === 'emp') { auOsc(t, 'sawtooth', 1800 * p, 220, .18, .3 * v, pan, .4, lp); auOsc(t, 'square', 900 * p, 120, .12, .14 * v, pan, .3, lp); auNz(t, .05, 'highpass', 5000, 3000, .6, .3 * v, pan, .3, lp); }
+    else if (kind === 'plasma') { auOsc(t, 'sawtooth', 700 * p, 140, .22, .4 * v, pan, .6, lp); auOsc(t, 'sine', 160 * p, 50, .28, .5 * v, pan, .3, lp); auNz(t, .14, 'bandpass', 2500, 800, 1, .3 * v, pan, .5, lp); }
+    else if (kind === 'rail') { auNz(t, .03, 'highpass', 5000, 2500, .6, 1 * v, pan, 0, lp); auOsc(t, 'sine', 220 * p, 32, .5, 1 * v, pan, .6, lp); auNz(t, .5, 'lowpass', 2200, 100, .5, .7 * v, pan, w * 1.3, lp); auOsc(t + .02, 'sawtooth', 2400, 300, .15, .3 * v, pan, .5, lp); AU.duckUntil = performance.now() + 600; }
     else if (kind === 'rifle') { auNz(t, .018, 'highpass', 3000, 1800, .6, .5 * v, pan, 0, lp); auNz(t, .09, 'bandpass', 2400 * p, 700, 1, .4 * v, pan, w * .6, lp); auOsc(t, 'triangle', 230 * p, 85, .09, .45 * v, pan, 0, lp); auNz(t + .01, .3, 'lowpass', 1500, 220, .5, .14 * v, pan, w, lp); }
     else { auNz(t, .025, 'highpass', 2800, 1500, .7, .55 * v, pan, 0, lp); auNz(t, .06, 'bandpass', 3000 * p, 800, 1.1, .4 * v, pan, w * .6, lp); auOsc(t, 'triangle', 280 * p, 75, .12, .55 * v, pan, 0, lp); auOsc(t, 'sine', 120 * p, 45, .16, .5 * v, pan, 0, lp); auNz(t + .01, .4, 'lowpass', 1800, 280, .5, .2 * v, pan, w, lp); }
   },
@@ -1305,6 +1320,7 @@ const sfx = {
   heart() { if (!auOK('heart', 400)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 62, 40, .12, .7, 0, .1); auOsc(t + .17, 'sine', 55, 38, .14, .5, 0, .1); },
   molotov(pan) { if (!auOK('molotov', 200)) return; const t = AU.ctx.currentTime; auNz(t, .08, 'highpass', 6000, 3500, .5, .7, pan, .5); auOsc(t, 'sine', 3400, 1800, .06, .15, pan, .4); auNz(t + .06, .7, 'lowpass', 1400, 200, .5, .6, pan, .6, 0, .05); auOsc(t + .05, 'sine', 90, 45, .5, .5, pan, .3); },
   crackle(pan) { if (!auOK('crackle', 90)) return; const t = AU.ctx.currentTime; for (let i = 0; i < 3; i++) auNz(t + Math.random() * .2, .03 + Math.random() * .04, 'bandpass', 1800 + Math.random() * 3500, 900, 1.5, .09, pan, .25); auNz(t, .3, 'lowpass', 500, 200, .5, .06, pan, .2); },
+  iem(pan) { if (!auOK('iem', 200)) return; const t = AU.ctx.currentTime; auOsc(t, 'sawtooth', 3200, 90, .45, .35, pan, .6); auOsc(t, 'square', 1500, 60, .35, .18, pan, .4); auNz(t, .25, 'highpass', 4500, 1500, .6, .5, pan, .5); auOsc(t + .05, 'sine', 70, 40, .5, .5, pan, .3); AU.duckUntil = performance.now() + 700; },
   cuff(pan) { if (!auOK('cuff', 80)) return; const t = AU.ctx.currentTime; auNz(t, .02, 'highpass', 3500, 3000, .8, .3, pan, .3); auOsc(t, 'sine', 2600, 2400, .05, .14, pan, .3); auNz(t + .09, .02, 'highpass', 3000, 2800, .8, .3, pan, .3); auOsc(t + .09, 'sine', 3100, 2900, .05, .14, pan, .3); },
   freed() { if (!auOK('freed', 300)) return; const t = AU.ctx.currentTime; [523.25, 659.25, 783.99].forEach((f, i) => auOsc(t + i * .11, 'sine', f, f, .55, .22, 0, .9)); },
   med() { if (!auOK('med', 200)) return; const t = AU.ctx.currentTime; [660, 880, 1320].forEach((f, i) => auOsc(t + i * .08, 'sine', f, f, .4, .18, 0, .6)); },
@@ -1644,14 +1660,15 @@ function cycleStance(list) {
   selDirty = true; sfx.ui();
 }
 // ---------- Vagues, ressources ----------
-const WAVES = [15e3, 25e3, 30e3, 40e3, 52e3, 66e3, 84e3, 104e3, 128e3, 156e3];
-const WAGG = () => (LEVEL.n * 2 + WV.i) >= 2 ? .75 : 1;
+const WAVES = [15e3, 25e3, 30e3, 40e3, 52e3, 66e3, 84e3, 104e3, 128e3, 156e3, 190e3, 230e3];
+const WAGG = () => (LEVEL.n * 3 + WV.i) >= 2 ? .75 : 1;
+const KILLP = () => [1, .8, .62, .48][Math.min(3, LEVEL.n)];
 const res = { sp: 260, hq: 1000 };
 const G_ = { over: null, started: false };
 const WV = { i: 0, phase: 'prep', t: 40, left: 0, rate: 0, acc: 0, sides: [0, 1], count: 0 };
 function startWave() {
   const s0 = (rnd() * 4) | 0, s1 = (s0 + 1 + ((rnd() * 3) | 0)) % 4; WV.sides = [s0, s1];
-  WV.left = Math.round(WAVES[LEVEL.n * 2 + WV.i] * WMUL[ACC.diff]); WV.rate = WV.left / 7; WV.acc = 0; WV.phase = 'spawn'; WV.t = 100;
+  WV.left = Math.round(WAVES[LEVEL.n * 3 + WV.i] * WMUL[ACC.diff]); WV.rate = WV.left / 7; WV.acc = 0; WV.phase = 'spawn'; WV.t = 100;
   bannerBig('VAGUE ' + (WV.i + 1), fmt(WV.left) + ' criminels en approche'); sfx.horn(); res.sp += 60;
 }
 function updateWaves(dt) {
@@ -1778,6 +1795,7 @@ addEventListener('keydown', e => {
   const dg = /^(Digit|Numpad)(\d)$/.exec(e.code); let k = dg ? dg[2] : e.key.toLowerCase(); keys[k] = true;
   if (briefRaid) { rdBriefKey(k, e); return; }
   if (smapOpen) { if (k === 'escape' || k === 'm') { e.preventDefault(); toggleMap(); } return; }
+  if (arsEl.style.display === 'flex') { if (k === 'escape' || k === 'u') { e.preventDefault(); toggleArsenal(); } return; }
   if (RD.active) { if (!(e.target && /^(SELECT|INPUT)$/.test(e.target.tagName))) rdKey(k, e); return; }
   if (e.target && /^(SELECT|INPUT)$/.test(e.target.tagName)) return;
   if (e.target && e.target.tagName === 'BUTTON' && (k === ' ' || k === 'enter')) return;
@@ -1793,7 +1811,7 @@ addEventListener('keydown', e => {
   else if (k === 'h') cycleStance(units.filter(u => u.sel));
   else if (k === 'backspace' || k === 'delete') { for (const u of units) if (u.sel) { u.order = null; if (u.type !== 'JD') { u.follow = false; u.hold = true; } } selDirty = true; }
   else if (k === 'b') armItem(units.some(u => u.sel && u.inv.gren > 0) || !units.some(u => u.sel && u.inv.shell > 0) ? 'gren' : 'shell');
-  else if (k === 'i') armItem('inc'); else if (k === 'y') armItem('mine'); else if (k === 'l') useMed();
+  else if (k === 'i') armItem('inc'); else if (k === 'u') toggleArsenal(); else if (k === 'y') armItem('mine'); else if (k === 'l') useMed();
   else if (k === 'c') { camFollow = true; const j = units.find(u => u.type === 'JD'); if (j) { cam.tx = j.x; cam.tz = j.z; } }
   else if (k === '?' || k === 'f1') { e.preventDefault(); $('ohelp').style.display = $('ohelp').style.display === 'flex' ? 'none' : 'flex'; }
   else if (k === 'v') cycleSpeed(); else if (k === 'n') cycleTod(); else if (k === 'o') toggleSnd();
@@ -2091,7 +2109,7 @@ function bfsField(M, tx, ty) {
 function rdPass(M, tx, ty) { if (tx < 0 || ty < 0 || tx >= M.GW || ty >= M.GH) return false; const i = ty * M.GW + tx, t = M.tile[i]; return (t === T_FLOOR || t === T_DOOR || t === T_YARD) && !M.solid[i]; }
 function rdOpaque(M, tx, ty) {
   if (tx < 0 || ty < 0 || tx >= M.GW || ty >= M.GH) return true; const i = ty * M.GW + tx, t = M.tile[i];
-  if (RD.smk && RD.smk.length) for (const s of RD.smk) if (Math.hypot(tx + .5 - s.x, ty + .5 - s.y) < s.r * Math.min(1, s.t / 1.2, Math.max(0, (s.life - s.t) / 1.5))) return true;
+  if (RD.smk && RD.smk.length && !RD.noSmoke) for (const s of RD.smk) if (Math.hypot(tx + .5 - s.x, ty + .5 - s.y) < s.r * Math.min(1, s.t / 1.2, Math.max(0, (s.life - s.t) / 1.5))) return true;
   if (t === T_WALL || t === T_VOID) return true; if (t === T_DOOR) { const d = M.doors[M.doorAt[i]]; return !(d.open || d.exit); } return false;
 }
 function rdFree(M, x, y, r) { return rdPass(M, Math.floor(x - r), Math.floor(y - r)) && rdPass(M, Math.floor(x + r), Math.floor(y - r)) && rdPass(M, Math.floor(x - r), Math.floor(y + r)) && rdPass(M, Math.floor(x + r), Math.floor(y + r)); }
@@ -2349,6 +2367,7 @@ function drawPerson(c, px, py, ang, s, o) {
     else if (o.mohawk) { c.fillStyle = o.mohawk; c.beginPath(); c.ellipse(hx0 - .02 * u, 0, .3 * u, .07 * u, 0, 0, 6.283); c.fill(); c.strokeStyle = 'rgba(0,0,0,.5)'; c.stroke(); }
     else { c.fillStyle = o.hair || '#2a1d14'; c.beginPath(); c.arc(hx0 - .03 * u, 0, .2 * u, 1.6, 4.7); c.fill(); }
     if (o.cap) { c.fillStyle = o.cap; c.beginPath(); c.arc(hx0, 0, .24 * u, 0, 6.283); c.fill(); c.fillStyle = shadeCol(o.cap, .7); c.fillRect(hx0 + .1 * u, -.2 * u, .22 * u, .4 * u); } }
+  if (o.visor) { c.shadowColor = o.visor; c.shadowBlur = 9; c.fillStyle = o.visor; c.fillRect(hx0 + .1 * u, -.075 * u, .16 * u, .15 * u); c.shadowBlur = 0; }
   c.restore();
 }
 const EN = {
@@ -2357,6 +2376,31 @@ const EN = {
   bruiser: { hp: 170, spd: 4.6, wp: 'shotgun', gun: 1.1, jacket: '#5a4a38', pants: '#2b2b2b', vest: '#3e4650', cap: '#6b6b60', dmg: 26, cd: 1.1, rng: 11, acc: .78, label: 'Brute' },
   chief: { hp: 320, spd: 4.8, wp: 'smg', gun: .9, jacket: '#6b1f6e', pants: '#1a1a1a', vest: '#2a2a2e', mohawk: '#e8d03a', dmg: 9, cd: .26, rng: 22, acc: .62, label: 'CHEF' },
 };
+Object.assign(EN, {
+  cybg: { hp: 120, spd: 5.3, wp: 'smg', gun: .9, jacket: '#6e7783', pants: '#2a2f37', helmet: true, cyber: true, visor: '#ff2a2a', dmg: 7, cd: .2, rng: 22, acc: .6, armor: 14, regen: 3, stunMul: .5, rush: true, emp: true, label: 'Fantassin cyborg' },
+  cybs: { hp: 80, spd: 3.6, wp: 'rifle', gun: 1.4, jacket: '#5d6672', pants: '#23272e', helmet: true, cyber: true, visor: '#ff6a2a', dmg: 26, cd: 1.5, rng: 34, acc: .86, armor: 8, regen: 2, stunMul: .5, laser: true, emp: true, label: 'Tireur optique' },
+  cybh: { hp: 240, spd: 3.8, wp: 'shotgun', gun: 1.1, jacket: '#4d5560', pants: '#1c1f24', helmet: true, cyber: true, visor: '#ff2a2a', bulk: 1.2, dmg: 28, cd: 1.2, rng: 11, acc: .78, armor: 22, stunMul: .3, rush: true, emp: true, label: 'Colosse' },
+  cybc: { hp: 420, spd: 4.4, wp: 'smg', gun: 1, jacket: '#7a2d3a', pants: '#1b1b1f', helmet: true, cyber: true, visor: '#ffd02a', bulk: 1.1, dmg: 10, cd: .25, rng: 24, acc: .66, armor: 24, regen: 5, stunMul: .3, rush: true, emp: true, label: 'Commandant cyborg' },
+  drone: { hp: 40, spd: 8.5, wp: 'none', gun: 0, mach: 'drone', dmg: 0, cd: 9, rng: 0, acc: 0, armor: 4, kami: true, flashImm: true, emp: true, sense: 16, label: 'Drone kamikaze' },
+  sent: { hp: 180, spd: 0, wp: 'rifle', gun: 1.2, mach: 'sent', dmg: 7, cd: .13, rng: 24, acc: .6, armor: 18, stat: true, flashImm: true, emp: true, sense: 24, label: 'Sentinelle' },
+  mech: { hp: 320, spd: 3.2, wp: 'smg', gun: 1.2, mach: 'mech', dmg: 7, cd: .15, rng: 20, acc: .62, armor: 24, rush: true, flashImm: true, emp: true, sense: 18, label: 'Méca lourd' },
+  robc: { hp: 440, spd: 3.6, wp: 'smg', gun: 1.2, mach: 'mech', boss: true, dmg: 10, cd: .2, rng: 22, acc: .66, armor: 26, rush: true, flashImm: true, emp: true, sense: 20, label: 'Unité ABC' },
+  ghost: { hp: 90, spd: 6.4, wp: 'rifle', gun: .9, jacket: '#2a2f45', pants: '#14161f', hood: '#1e2236', cyber: true, visor: '#c040ff', dmg: 16, cd: .45, rng: 22, acc: .8, armor: 6, cloak: true, stunMul: .6, emp: true, label: 'Fantôme optique' },
+  shld: { hp: 200, spd: 4.4, wp: 'smg', gun: .9, jacket: '#2b2240', pants: '#15121f', helmet: true, cyber: true, visor: '#40e0ff', dmg: 6, cd: .24, rng: 18, acc: .62, armor: 14, shield: true, rush: true, stunMul: .5, emp: true, label: 'Garde bouclier' },
+  snpi: { hp: 90, spd: 3.4, wp: 'rifle', gun: 1.5, jacket: '#231f36', pants: '#12101a', helmet: true, cyber: true, visor: '#ff40a0', dmg: 32, cd: 1.5, rng: 36, acc: .82, armor: 10, laser: true, stunMul: .5, emp: true, label: 'Tireur IA' },
+  iac: { hp: 540, spd: 4.2, wp: 'smg', gun: 1.1, jacket: '#3a1f5a', pants: '#120d1c', helmet: true, cyber: true, visor: '#ff40ff', bulk: 1.25, dmg: 11, cd: .2, rng: 24, acc: .68, armor: 30, shield: true, summon: true, rush: true, stunMul: .25, emp: true, boss: true, label: 'Nexus-Prime' },
+});
+const FOES = { humans: { pool: [['punk', .42], ['thug', .30], ['bruiser', .28]], chief: 'chief' }, cyborgs: { pool: [['cybg', .45], ['cybs', .25], ['cybh', .30]], chief: 'cybc' }, robots: { pool: [['drone', .35], ['sent', .25], ['mech', .40]], chief: 'robc' }, ia: { pool: [['ghost', .30], ['shld', .35], ['snpi', .35]], chief: 'iac' } };
+const MEGA = [
+  { name: 'Mégapole 1 · Les Bas-Quartiers', fac: 'humans', tod: 1, foe: 'Criminels', blurb: 'Gangs humains : pistolets, mitraillettes, fusils à pompe. Ils se mettent à couvert, crient pour appeler du renfort et exécutent les otages si l\'alarme dure.' },
+  { name: 'Mégapole 2 · Néo-Port', fac: 'cyborgs', tod: 2, foe: 'Cyborgs', blurb: 'Hommes-machines blindés : ils avancent sans reculer, se régénèrent et encaissent les armes légères. Faibles face aux armes perforantes et aux impulsions EMP.' },
+  { name: 'Mégapole 3 · Cité des Machines', fac: 'robots', tod: 1, foe: 'Machines', blurb: 'Drones kamikazes, sentinelles fixes et mécas lourds. Ils détectent à 360°, ignorent le flash et voient à travers les fumigènes. L\'impulsion EMP les paralyse.' },
+  { name: 'Mégapole 4 · Le Noyau', fac: 'ia', tod: 2, foe: 'Unités IA', blurb: 'L\'IA coordonne : camouflage optique, boucliers frontaux, tireurs de précision et un boss qui invoque des drones. Seules les armes de pointe percent leurs défenses.' },
+];
+const UNLOCK = { ap: 1, emp: 1, iem: 1, plasma: 2, power: 2, rail: 3 };
+let PROG = { max: 0 }; try { PROG = Object.assign(PROG, JSON.parse(localStorage.getItem('ebbtideProg') || '{}')); } catch (e) { }
+const isUnlocked = id => (UNLOCK[id] || 0) <= Math.max(LEVEL.n, PROG.max);
+const WEAK = { humans: 'Tout fonctionne : visez la tête, attention aux fusils à pompe de près.', cyborgs: 'Armes perforantes, impulsion EMP, fusil à pompe ; évitez le pistolet seul (balles absorbées).', robots: 'Impulsion EMP (paralyse), armes perforantes, plasma ; le flash et le fumigène ne servent presque à rien.', ia: 'Prenez les gardes à revers, révélez les camouflés (flash, IEM), plasma et canon électromagnétique.' };
 const SKINS = ['#d8b08c', '#b98862', '#8d5e3c', '#e6c3a0'];
 
 const WP = {
@@ -2364,15 +2408,19 @@ const WP = {
   rifle: { n: "Fusil d'assaut", dmg: 20, cd: .15, rng: 23, acc: .78, gun: 1.05 },
   shotgun: { n: 'Fusil à pompe', dmg: 62, cd: .85, rng: 9, acc: .97, gun: 1.0 },
   sniper: { n: 'Fusil de précision', dmg: 125, cd: 1.5, rng: 34, acc: .99, gun: 1.5 },
+  ap: { n: 'Fusil perforant', dmg: 46, cd: .3, rng: 25, acc: .86, gun: 1.25, pierce: .7 },
+  emp: { n: 'Pistolet à impulsion', dmg: 16, cd: .5, rng: 18, acc: .9, gun: .75, pierce: .2, emp: true },
+  plasma: { n: 'Fusil à plasma', dmg: 80, cd: .55, rng: 24, acc: .9, gun: 1.2, pierce: .85 },
+  rail: { n: 'Canon électromagnétique', dmg: 230, cd: 1.9, rng: 40, acc: .99, gun: 1.7, pierce: 1 },
 };
-const ARM = { light: { n: 'Légère', hp: 1, spd: 1 }, medium: { n: 'Moyenne', hp: 1.15, spd: .94 }, heavy: { n: 'Lourde', hp: 1.4, spd: .84 } };
-const ITEMS = { flash: { n: 'Flash', c: 2, k: 'F', d: 'Aveugle les criminels : ils peuvent être arrêtés.' }, gren: { n: 'Grenade', c: 2, k: 'G', d: 'Explose : tue ou blesse. Dangereux pour les otages et les équipiers.' }, smoke: { n: 'Fumigène', c: 2, k: 'V', d: 'Bloque la vue (la vôtre et la leur) pendant 10 s.' }, fire: { n: 'Incendiaire', c: 2, k: 'I', d: 'Crée un brasier qui brûle et fait fuir les criminels. Dangereux pour les otages et les équipiers.' }, med: { n: 'Trousse', c: 1, k: 'B', d: 'Soigne le porteur et les équipiers proches.' }, none: { n: '— rien —', c: 0, k: '', d: '' } };
+const ARM = { light: { n: 'Légère', hp: 1, spd: 1 }, medium: { n: 'Moyenne', hp: 1.15, spd: .94 }, heavy: { n: 'Lourde', hp: 1.4, spd: .84 }, power: { n: 'Exosquelette', hp: 1.9, spd: .8 } };
+const ITEMS = { flash: { n: 'Flash', c: 2, k: 'F', d: 'Aveugle les criminels : ils peuvent être arrêtés.' }, gren: { n: 'Grenade', c: 2, k: 'G', d: 'Explose : tue ou blesse. Dangereux pour les otages et les équipiers.' }, smoke: { n: 'Fumigène', c: 2, k: 'V', d: 'Bloque la vue (la vôtre et la leur) pendant 10 s.' }, iem: { n: 'Grenade IEM', c: 2, k: 'N', d: 'Impulsion électromagnétique : paralyse cyborgs, robots et unités IA, détruit les drones et révèle les camouflés. Sans effet sur les humains.' }, fire: { n: 'Incendiaire', c: 2, k: 'I', d: 'Crée un brasier qui brûle et fait fuir les criminels. Dangereux pour les otages et les équipiers.' }, med: { n: 'Trousse', c: 1, k: 'B', d: 'Soigne le porteur et les équipiers proches.' }, none: { n: '— rien —', c: 0, k: '', d: '' } };
 const ROLES = {
-  jug: { name: 'LE JUGE', tag: 'JUGE', hp: 140, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#d9b43a', desc: "Chef d'équipe. S'il tombe, le raid est perdu." },
-  fus: { name: 'FUSILIER', tag: 'FUS', hp: 85, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#5fb0d6', desc: 'Soldat polyvalent. Feu nourri à moyenne portée.' },
-  sni: { name: "TIREUR D'ÉLITE", tag: 'TIR', hp: 60, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#9bcf6a', desc: 'Tue de très loin. Fragile : en retrait ou en embuscade.' },
-  bre: { name: 'BRÈCHEUR', tag: 'BRÈ', hp: 105, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#e0803a', desc: 'Blindé, dévastateur de près. Première ligne.' },
-  med: { name: 'MÉDIC', tag: 'MÉD', hp: 70, wps: ['pistol', 'rifle', 'shotgun', 'sniper'], col: '#e8e8e4', desc: 'Soigne les équipiers proches (+3 PV/s) et porte des trousses.' },
+  jug: { name: 'LE JUGE', tag: 'JUGE', hp: 140, wps: ['pistol', 'rifle', 'shotgun', 'sniper', 'ap', 'emp', 'plasma', 'rail'], col: '#d9b43a', desc: "Chef d'équipe. S'il tombe, le raid est perdu." },
+  fus: { name: 'FUSILIER', tag: 'FUS', hp: 85, wps: ['pistol', 'rifle', 'shotgun', 'sniper', 'ap', 'emp', 'plasma', 'rail'], col: '#5fb0d6', desc: 'Soldat polyvalent. Feu nourri à moyenne portée.' },
+  sni: { name: "TIREUR D'ÉLITE", tag: 'TIR', hp: 60, wps: ['pistol', 'rifle', 'shotgun', 'sniper', 'ap', 'emp', 'plasma', 'rail'], col: '#9bcf6a', desc: 'Tue de très loin. Fragile : en retrait ou en embuscade.' },
+  bre: { name: 'BRÈCHEUR', tag: 'BRÈ', hp: 105, wps: ['pistol', 'rifle', 'shotgun', 'sniper', 'ap', 'emp', 'plasma', 'rail'], col: '#e0803a', desc: 'Blindé, dévastateur de près. Première ligne.' },
+  med: { name: 'MÉDIC', tag: 'MÉD', hp: 70, wps: ['pistol', 'rifle', 'shotgun', 'sniper', 'ap', 'emp', 'plasma', 'rail'], col: '#e8e8e4', desc: 'Soigne les équipiers proches (+3 PV/s) et porte des trousses.' },
 };
 const DEF_LOAD = { team: ['fus', 'bre', 'med'], u: {
   jug: { wp: 'pistol', wp2: 'shotgun', arm: 'medium', it: ['flash', 'gren', 'fire', 'med', 'smoke'] },
@@ -2408,11 +2456,12 @@ function enterRaid(raid) {
   for (const l of rooms) { const p = freeIn(l, 0); if (!p) continue; const dd = fd[Math.floor(p[1]) * M.GW + Math.floor(p[0])]; if (l.id !== M.exitLeaf && dd > fdm) { fdm = dd; far = l; } }
   for (const l of rooms) {
     const ex0 = l.id === M.exitLeaf; const n = ex0 ? (R() < .35 ? 1 : 0) : (l.w * l.h < 190 ? 1 + (R() < .45 ? 1 : 0) : 2 + (R() < .6 ? 1 : 0));
-    for (let i = 0; i < n; i++) { const p = freeIn(l, ex0 ? 18 : 0); if (!p) continue; const q = R(), tp = (l === far && i === 0 && raid.kind !== 'rescue') ? 'chief' : (q < .42 ? 'punk' : q < .72 ? 'thug' : 'bruiser'); const T = EN[tp]; RD.en.push({ k: 'e', t: tp, x: p[0], y: p[1], a: R() * 6.28, hp: T.hp, maxhp: T.hp, st: 'idle', rt: 0, cd: .5 + R(), tgt: null, last: null, fld: null, fldT: 0, stun: 0, prog: 0, swing: 0, mv: false, skin: SKINS[R() * 4 | 0], room: l.id, wait: 0, hit: 0, ph: R() * 6.28, patrol: R() < .35 ? { ox: p[0], oy: p[1] } : null }); }
+    for (let i = 0; i < n; i++) { const p = freeIn(l, ex0 ? 18 : 0); if (!p) continue; const FD = FOES[MEGA[LEVEL.n].fac], q = R(), tp = (l === far && i === 0 && raid.kind !== 'rescue') ? FD.chief : rdRollFoe(FD, q); const T = EN[tp]; RD.en.push({ k: 'e', t: tp, x: p[0], y: p[1], a: R() * 6.28, hp: T.hp, maxhp: T.hp, st: 'idle', rt: 0, cd: .5 + R(), tgt: null, last: null, fld: null, fldT: 0, stun: 0, prog: 0, swing: 0, mv: false, skin: SKINS[R() * 4 | 0], room: l.id, wait: 0, hit: 0, ph: R() * 6.28, patrol: R() < .35 ? { ox: p[0], oy: p[1] } : null }); }
   }
   { const cap = Math.round(([10, 14, 18, 24][ACC.diff] + (RD.sq.length > 3 ? 0 : -2)) * (1 + .07 * (raid.lvl || 0) + .08 * LEVEL.n)); while (RD.en.length > cap) { const idx = RD.en.findIndex(e => e.t !== 'chief' && e.t !== 'bruiser'); RD.en.splice(idx < 0 ? 0 : idx, 1); } }
   { const lv = raid.lvl || 0; RD.lvK = 1 + .05 * lv + .06 * LEVEL.n; RD.dm = .93 * RD.lvK; RD.am = .88 + .025 * lv + .03 * LEVEL.n; RD.stage = 0; const maxD = Math.max(1, fdm);
-    for (const e of RD.en) { const dd = fd[Math.floor(e.y) * M.GW + Math.floor(e.x)], tier = Math.max(0, Math.min(1, dd / maxD)); e.tier = tier; if (e.t === 'punk' && tier > .6 && R() < .5) e.t = 'thug'; else if (e.t === 'thug' && tier > .8 && R() < .4) e.t = 'bruiser'; const T = EN[e.t]; e.hp = e.maxhp = Math.round(T.hp * (1 + .25 * tier) * (1 + .04 * lv + .05 * LEVEL.n)); } }
+    for (const e of RD.en) { e.lastHit = 99; e.reveal = 0; const dd = fd[Math.floor(e.y) * M.GW + Math.floor(e.x)], tier = Math.max(0, Math.min(1, dd / maxD)); e.tier = tier; if (e.t === 'punk' && tier > .6 && R() < .5) e.t = 'thug'; else if (e.t === 'thug' && tier > .8 && R() < .4) e.t = 'bruiser'; const T = EN[e.t]; e.hp = e.maxhp = Math.round(T.hp * (1 + .25 * tier) * (1 + .04 * lv + .05 * LEVEL.n)); } }
+  { const keep = Math.max(5, Math.round(RD.en.length * [1, .95, .8, .72][LEVEL.n])), ch = FOES[MEGA[LEVEL.n].fac].chief; while (RD.en.length > keep) { const idx = RD.en.findIndex(e => e.t !== ch); if (idx < 0) break; RD.en.splice(idx, 1); } }
   const nh = raid.kind === 'rescue' ? 3 : raid.kind === 'mixed' ? 2 : 1;
   const hr = rooms.filter(l => l.id !== M.exitLeaf && l.type !== 'bath').sort(() => R() - .5);
   for (let i = 0; i < nh && i < hr.length; i++) { const p = freeIn(hr[i], 0); if (p) RD.hs.push({ k: 'h', x: p[0], y: p[1], a: R() * 6.28, st: 'tied', prog: 0, timer: 55, timer0: 55, swing: 0, skin: SKINS[R() * 4 | 0], name: 'OTAGE ' + (i + 1) }); }
@@ -2426,7 +2475,7 @@ function enterRaid(raid) {
 }
 function rdMakeUnit(role, x, y, ex) {
   const L = LOAD.u[role], R = ROLES[role], A = ARM[L.arm] || ARM.medium, w = L.wp && WP[L.wp] ? L.wp : R.wps[0], hp = Math.round(R.hp * A.hp), wps = [L.wp, L.wp2].filter((q, i, a) => q && WP[q] && a.indexOf(q) === i); if (!wps.length) wps.push(w);
-  const u = { k: role === 'jug' ? 'j' : 'a', role, x, y, a: -Math.PI / 2, hp, maxhp: hp, cd: Math.random() * .3, tcd: 0, swing: 0, mv: false, name: R.name, wp: wps[0], wps, wmode: -1, arm: L.arm, spd: (role === 'jug' ? 8.2 : 7) * A.spd, inv: { flash: 0, gren: 0, smoke: 0, fire: 0, med: 0 }, kinds: [], sel: role === 'jug', order: null, queue: [], stance: 'follow', flashCd: 0 };
+  const u = { k: role === 'jug' ? 'j' : 'a', role, x, y, a: -Math.PI / 2, hp, maxhp: hp, cd: Math.random() * .3, tcd: 0, swing: 0, mv: false, name: R.name, wp: wps[0], wps, wmode: -1, arm: L.arm, spd: (role === 'jug' ? 8.2 : 7) * A.spd, inv: { flash: 0, gren: 0, smoke: 0, fire: 0, iem: 0, med: 0 }, kinds: [], sel: role === 'jug', order: null, queue: [], stance: 'follow', flashCd: 0 };
   for (const it of L.it) if (ITEMS[it] && it !== 'none') { u.inv[it] += ITEMS[it].c; if (!u.kinds.includes(it)) u.kinds.push(it); }
   return u;
 }
@@ -2436,6 +2485,7 @@ function rdMakeSquad(ex, ey) {
   team.forEach((r, i) => RD.allies.push(rdMakeUnit(r, ex + offs[i][0], ey + offs[i][1])));
   RD.sq = [RD.judge].concat(RD.allies);
 }
+function rdRollFoe(FD, q) { let a = 0; for (const [id, w] of FD.pool) { a += w; if (q < a) return id; } return FD.pool[0][0]; }
 function rdMsg(a, b, t) { RD.msgs.push({ a, b: b || '', t: t || 2.5, t0: t || 2.5 }); if (RD.msgs.length > 3) RD.msgs.shift(); try { $('live').textContent = a + '. ' + (b || ''); } catch (e) { } }
 function rdFloat(x, y, txt, col) { RD.fl.push({ x, y, txt, col: col || '#fff', t: 1.2 }); }
 function rdSplat(x, y, n, big) {
@@ -2456,11 +2506,11 @@ function rdShoot(src, tgt, dmg, acc, kind, wp) {
   RD.pt.push({ k: 'c', x: src.x, y: src.y, vx: -Math.sin(a) * (2 + Math.random() * 2), vy: Math.cos(a) * (2 + Math.random() * 2), t: 0, l: 1.4 });
   if (!hit) for (let i = 0; i < 4; i++) RD.pt.push({ k: 'p', x: ex, y: ey, vx: (Math.random() - .5) * 9, vy: (Math.random() - .5) * 9, t: 0, l: .25 });
   if (RD.pt.length > 220) RD.pt.splice(0, 40); if (RD.tr.length > 90) RD.tr.shift();
-  sfx.gun(wp || 'pistol', src.k === 'e' ? .85 : 1.1, rdPanOf(src.x), Math.min(1, rdSafe(src, RD.judge) / 40), src.k === 'e' ? .92 + Math.random() * .2 : 1);
+  sfx.gun(wp === 'smg' ? 'rifle' : (wp || 'pistol'), src.k === 'e' ? .85 : 1.1, rdPanOf(src.x), Math.min(1, rdSafe(src, RD.judge) / 40), src.k === 'e' ? .92 + Math.random() * .2 : 1);
   if (!hit && Math.random() < .55) sfx.ricochet(rdPanOf(ex));
   src.fl = .07; if (src.k !== 'e') rdNoise(src.x, src.y, 24);
   if (hit) {
-    if (tgt.k === 'e') { tgt.hp -= dmg; tgt.hit = .12; sfx.hit(rdPanOf(tgt.x)); rdSplat(tgt.x, tgt.y, 3, false); if (tgt.st === 'idle' || tgt.st === 'stun') { /* reste */ } if (tgt.st === 'idle') { tgt.st = 'combat'; RD.alarm = true; } if (tgt.hp <= 0) rdKill(tgt, a); }
+    if (tgt.k === 'e') { tgt.hp -= rdEnemyDmg(tgt, src, dmg, wp); tgt.hit = .12; sfx.hit(rdPanOf(tgt.x)); rdSplat(tgt.x, tgt.y, 3, false); if (tgt.st === 'idle' || tgt.st === 'stun') { /* reste */ } if (tgt.st === 'idle') { tgt.st = 'combat'; RD.alarm = true; } if (tgt.hp <= 0) rdKill(tgt, a); }
     else { const k = [.5, 1, 1.35, 1.8][ACC.diff]; tgt.hp -= dmg * k; rdSplat(tgt.x, tgt.y, 2, false); if (tgt.k === 'j') { RD.hurt = .4; RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 5); sfx.hurt(); } if (tgt.hp <= 0) rdDown(tgt, a); }
   }
 }
@@ -2485,18 +2535,43 @@ function rdCheck() {
   const en = RD.en.filter(e => e.st !== 'dead' && e.st !== 'arrested').length, hs = RD.hs.filter(h => h.st === 'tied' || h.st === 'fleeing').length;
   if (!en && !hs && !RD.cleared) { RD.cleared = true; rdMsg('BÂTIMENT SÉCURISÉ', 'Retournez à la porte pour sortir', 4); }
 }
-function rdPickWeapon(u, d) {
+function rdPickWeapon(u, d, tg) {
   if (u.wps.length < 2) return u.wps[0]; if (u.wmode >= 0) return u.wps[u.wmode % u.wps.length]; let best = u.wps[0], bs = -1;
-  for (const w of u.wps) { const W = WP[w]; let sc = W.dmg / W.cd * Math.max(.2, W.acc - d * .012); if (d > W.rng) sc *= .05; if (w === 'shotgun' && d < 9) sc *= 1.6; if (w === 'sniper' && d > 22) sc *= 2; if (sc > bs) { bs = sc; best = w; } }
+  for (const w of u.wps) { const W = WP[w]; let dm = W.dmg; if (tg) { const T = EN[tg.t]; if (T.armor) dm = Math.max(dm * .3, dm - T.armor * (1 - (W.pierce || 0))); if (T.shield) dm *= .4; if (W.emp && T.emp && tg.st !== 'stun') dm = dm * 2.5 + 30; }
+    let sc = dm / W.cd * Math.max(.2, W.acc - d * .012); if (d > W.rng) sc *= .05; if (w === 'shotgun' && d < 9) sc *= 1.6; if (w === 'sniper' && d > 22) sc *= 2; if (sc > bs) { bs = sc; best = w; } }
   return best;
+}
+function rdEnemyDmg(e, src, dmg, wp) {
+  const T = EN[e.t], W = WP[wp] || {}; let d = dmg; const pr = W.pierce || 0;
+  if (T.armor) d = Math.max(dmg * .3, dmg - T.armor * (1 - pr));
+  if (T.shield && pr < 1) { let df = Math.atan2(src.y - e.y, src.x - e.x) - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; if (Math.abs(df) < 1.05) { d *= pr >= .8 ? .5 : .15; e.shHit = .15; } }
+  if (W.emp && T.emp) { e.st = 'stun'; e.stun = Math.max(e.stun || 0, 1.4); e.prog = 0; }
+  if (T.summon && !e.summoned && e.hp - d < e.maxhp * .5) { e.summoned = true; rdSpawnEnemy('drone', e.x + 1.2, e.y + 1, .8); rdSpawnEnemy('drone', e.x - 1.2, e.y - 1, .8); rdMsg('NEXUS-PRIME', 'Il lance ses drones', 2.5); sfx.alarm(); }
+  e.lastHit = 0; if (T.cloak) e.reveal = Math.max(e.reveal || 0, 1.2); return d;
+}
+function rdSpawnEnemy(tp, x, y, tier) {
+  const T = EN[tp], lv = RD.raid.lvl || 0, j = RD.judge; const e = { k: 'e', t: tp, x, y, a: 0, hp: 0, maxhp: 0, st: 'hunt', rt: 0, cd: .6, tgt: null, last: { x: j.x, y: j.y }, fld: null, fldT: 0, stun: 0, prog: 0, swing: 0, mv: false, skin: SKINS[Math.random() * 4 | 0], room: -1, wait: 0, hit: 0, ph: Math.random() * 6, patrol: null, tier, lastHit: 99, reveal: 0 };
+  e.hp = e.maxhp = Math.round(T.hp * (1 + .04 * lv + .05 * LEVEL.n)); RD.en.push(e); RD.total.en++; return e;
+}
+function rdDroneBoom(e) {
+  sfx.boom(4); rdSplat(e.x, e.y, 6, false); const k = [.5, 1, 1.35, 1.8][ACC.diff];
+  for (const f of RD.sq) { if (f.hp <= 0 || f.dead) continue; if (Math.hypot(f.x - e.x, f.y - e.y) < 2.6) { f.hp -= 38 * RD.dm * k; if (f.k === 'j') RD.hurt = .4; rdSqDirty = true; if (f.hp <= 0) rdDown(f, 0); } }
+  for (let q = 0; q < 14; q++) RD.pt.push({ k: 'p', x: e.x, y: e.y, vx: (Math.random() - .5) * 10, vy: (Math.random() - .5) * 10, t: 0, l: .35 });
+  e.st = 'dead'; e.da = 0; RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 6); rdCheck();
+}
+function rdIEM(p) {
+  const M = RD.M; let n = 0; sfx.iem(rdPanOf(p.x1)); rdNoise(p.x1, p.y1, 24); RD.alarm = true;
+  for (let q = 0; q < 24; q++) { const a = q / 24 * 6.283; RD.pt.push({ k: 'p', x: p.x1, y: p.y1, vx: Math.cos(a) * 11, vy: Math.sin(a) * 11, t: 0, l: .4 }); }
+  for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested') continue; const T = EN[e.t]; if (!T.emp) continue; const d = Math.hypot(e.x - p.x1, e.y - p.y1); if (d < 8 && (d < 2.5 || rdLos(M, p.x1, p.y1, e.x, e.y))) { if (T.kami) { e.hp = 0; rdKill(e, 0); } else { e.st = 'stun'; e.stun = 5; e.prog = 0; if (T.cloak) e.reveal = 5; } n++; } }
+  rdMsg('IMPULSION EMP', n ? n + ' machine' + (n > 1 ? 's' : '') + ' neutralisée' + (n > 1 ? 's' : '') : 'aucune machine touchée', 2);
 }
 function rdCycleWeapon(u) { if (!u || u.hp <= 0 || u.dead || u.wps.length < 2) return; u.wmode = u.wmode + 1 >= u.wps.length ? -1 : u.wmode + 1; if (u.wmode >= 0) u.wp = u.wps[u.wmode]; u.cd = Math.max(u.cd, .3); rdSqDirty = true; sfx.ui(); }
 function rdAutoFire(u, dt) {
   const M = RD.M; u.cd -= dt; const maxR = Math.max(...u.wps.map(w => WP[w].rng)); let tg = null, td = u.stance === 'ambush' ? Math.min(maxR, 9) : maxR;
-  for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested' || e.st === 'stun') continue; const d = rdSafe(u, e); if (d < td && rdLos(M, u.x, u.y, e.x, e.y)) { td = d; tg = e; } }
+  for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested') continue; const T = EN[e.t]; if (e.st === 'stun' && !T.cyber && !T.mach) continue; const d = rdSafe(u, e); if (T.cloak && !(e.reveal > 0) && d > 6 && e.st !== 'stun') continue; if (d < td && rdLos(M, u.x, u.y, e.x, e.y)) { td = d; tg = e; } }
   if (tg) {
     const want = Math.atan2(tg.y - u.y, tg.x - u.x); let df = want - u.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; u.a += df * Math.min(1, dt * 14);
-    const nw = rdPickWeapon(u, td); if (nw !== u.wp) { u.wp = nw; u.cd = Math.max(u.cd, .3); rdSqDirty = true; sfx.step(rdPanOf(u.x), .6); } const w = WP[u.wp];
+    const nw = rdPickWeapon(u, td, tg); if (nw !== u.wp) { u.wp = nw; u.cd = Math.max(u.cd, .3); rdSqDirty = true; sfx.step(rdPanOf(u.x), .6); } const w = WP[u.wp];
     if (td <= w.rng && u.cd <= 0 && Math.abs(df) < .5) { u.cd = w.cd * (.95 + Math.random() * .1); rdShoot(u, tg, w.dmg, w.acc, 'f', u.wp); }
   }
   return tg;
@@ -2530,7 +2605,7 @@ function rdUseMed(u) {
 }
 function rdBang(p) {
   const M = RD.M; let n = 0; sfx.flash(rdPanOf(p.x1));
-  for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested') continue; const d = Math.hypot(e.x - p.x1, e.y - p.y1); if (d < 9 && (d < 2.5 || rdLos(M, p.x1, p.y1, e.x, e.y))) { e.st = 'stun'; e.stun = 5.5; e.prog = 0; n++; } }
+  for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested') continue; const d = Math.hypot(e.x - p.x1, e.y - p.y1); if (d < 9 && (d < 2.5 || rdLos(M, p.x1, p.y1, e.x, e.y))) { const T = EN[e.t]; if (T.flashImm) continue; e.st = 'stun'; e.stun = 5.5 * (T.stunMul || 1); e.prog = 0; if (T.cloak) e.reveal = 4; n++; } }
   const j = RD.judge; if (Math.hypot(j.x - p.x1, j.y - p.y1) < 12 && rdLos(M, j.x, j.y, p.x1, p.y1)) RD.flashT = .3;
   RD.pt.push({ k: 's', x: p.x1, y: p.y1, vx: 0, vy: 0, t: 0, l: .5 }); rdNoise(p.x1, p.y1, 26); RD.alarm = true;
   rdMsg('FLASH', n ? n + ' criminel' + (n > 1 ? 's' : '') + ' aveuglé' + (n > 1 ? 's' : '') + ' · approchez pour arrêter' : 'personne touché', 2);
@@ -2614,19 +2689,21 @@ function rdUpdate(dt) {
   RD.fires = RD.fires.filter(f => f.t < f.life);
   // criminels
   for (const e of RD.en) {
-    if (e.st === 'dead' || e.st === 'arrested') continue; const T = EN[e.t]; e.mv = false; if (e.hit > 0) e.hit -= dt; if (e.fl) e.fl -= dt;
-    if (e.st === 'stun') { e.stun -= dt; const d = rdSafe(j, e); if (d < 1.7) { e.prog += dt; if (e.prog >= 1) { e.st = 'arrested'; RD.arrests++; rdFloat(e.x, e.y - 1, 'ARRÊTÉ +40', '#6fcf6a'); sfx.cuff(rdPanOf(e.x)); rdCheck(); continue; } } else e.prog = Math.max(0, e.prog - dt * 2); if (e.stun <= 0) { e.st = 'combat'; e.prog = 0; } continue; }
+    if (e.st === 'dead' || e.st === 'arrested') continue; const T = EN[e.t]; e.mv = false; if (e.hit > 0) e.hit -= dt; if (e.fl) e.fl -= dt; e.lastHit = (e.lastHit || 0) + dt; if (e.reveal > 0) e.reveal -= dt; if (e.shHit > 0) e.shHit -= dt; if (T.regen && e.lastHit > 3 && e.hp < e.maxhp && e.st !== 'stun') e.hp = Math.min(e.maxhp, e.hp + T.regen * dt);
+    if (e.st === 'stun') { e.stun -= dt; const d = rdSafe(j, e); if (d < 1.7 && !T.mach) { e.prog += dt; if (e.prog >= 1) { e.st = 'arrested'; RD.arrests++; rdFloat(e.x, e.y - 1, 'ARRÊTÉ +40', '#6fcf6a'); sfx.cuff(rdPanOf(e.x)); rdCheck(); continue; } } else e.prog = Math.max(0, e.prog - dt * 2); if (e.stun <= 0) { e.st = 'combat'; e.prog = 0; } continue; }
     if (e.afterburn > 0) { e.afterburn -= dt; e.hp -= 12 * dt; if (e.hp <= 0) { rdKill(e, 0); continue; } }
     if (e.burn > 0) { e.burn -= dt; const dd = Math.hypot(e.x - e.bx, e.y - e.by) || 1; rdMove(M, e, (e.x - e.bx) / dd * 4.5 * dt, (e.y - e.by) / dd * 4.5 * dt, .42); e.mv = true; e.swing = Math.sin(RD.t * 16); continue; }
     // perception
-    let seen = null, sd = 1e9;
-    for (const f of rdFriends()) { const d = rdSafe(e, f); if (d > 26) continue; let df = Math.atan2(f.y - e.y, f.x - e.x) - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; const fov = e.st === 'idle' ? 1.05 : 6.3; if ((d < 4.5 || Math.abs(df) < fov) && rdLos(M, e.x, e.y, f.x, f.y) && d < sd) { sd = d; seen = f; } }
+    let seen = null, sd = 1e9; RD.noSmoke = !!T.sense;
+    for (const f of rdFriends()) { const d = rdSafe(e, f); if (d > (T.sense || 26)) continue; let df = Math.atan2(f.y - e.y, f.x - e.x) - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; const fov = (T.sense || e.st !== 'idle') ? 6.3 : 1.05; if ((d < 4.5 || Math.abs(df) < fov) && rdLos(M, e.x, e.y, f.x, f.y) && d < sd) { sd = d; seen = f; } }
+    RD.noSmoke = false;
+    if (T.kami) { if (seen) { if (e.st === 'idle' || e.st === 'hunt') { e.st = 'combat'; RD.alarm = true; } e.last = { x: seen.x, y: seen.y }; e.a = Math.atan2(seen.y - e.y, seen.x - e.x); rdChase(e, seen.x, seen.y, T.spd, dt); if (sd < 1.4) rdDroneBoom(e); } else if (e.last && e.st !== 'idle') rdChase(e, e.last.x, e.last.y, T.spd * .8, dt); if (e.mv) e.swing = Math.sin(RD.t * 20); continue; }
     if (seen) {
       if (e.st === 'idle' || e.st === 'hunt') { e.st = 'combat'; e.rt = .4 + Math.random() * .25; RD.alarm = true; for (const o of RD.en) if (o !== e && o.st === 'idle' && Math.hypot(o.x - e.x, o.y - e.y) < 20) { o.st = 'hunt'; o.last = { x: seen.x, y: seen.y }; o.wait = 0; } if (RD.t > 1) sfx.alarm(); }
       e.last = { x: seen.x, y: seen.y }; e.seenT = 0; e.tgt = seen;
       const want = Math.atan2(seen.y - e.y, seen.x - e.x); let df = want - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; e.a += df * Math.min(1, dt * 10);
-      if (e.rt > 0) e.rt -= dt; else { e.cd -= dt; if (e.cd <= 0 && sd < T.rng) { e.cd = T.cd * (.8 + Math.random() * .5); rdShoot(e, seen, T.dmg * RD.dm * (1 + .15 * (e.tier || 0)), Math.min(.92, T.acc * RD.am * (1 + .12 * RD.stage)), 'e', T.wp); } }
-      if (sd > T.rng * .65) { rdChase(e, seen.x, seen.y, T.spd * .75, dt); } else if (sd < 4.5 && e.t !== 'bruiser') { rdMove(M, e, (e.x - seen.x) / sd * 2.5 * dt, (e.y - seen.y) / sd * 2.5 * dt, .42); e.mv = true; }
+      if (e.rt > 0) e.rt -= dt; else { e.cd -= dt; if (e.cd <= 0 && sd < T.rng) { e.cd = T.cd * (.8 + Math.random() * .5); rdShoot(e, seen, T.dmg * RD.dm * (1 + .15 * (e.tier || 0)), Math.min(.92, T.acc * RD.am * (1 + .12 * RD.stage)), 'e', T.wp); if (T.cloak) e.reveal = Math.max(e.reveal || 0, .9); } }
+      if (T.stat) { } else if (T.rush) { if (sd > 4) rdChase(e, seen.x, seen.y, T.spd, dt); } else if (sd > T.rng * .65) { rdChase(e, seen.x, seen.y, T.spd * .75, dt); } else if (sd < 4.5 && e.t !== 'bruiser') { rdMove(M, e, (e.x - seen.x) / sd * 2.5 * dt, (e.y - seen.y) / sd * 2.5 * dt, .42); e.mv = true; }
       else if (e.t === 'bruiser') rdChase(e, seen.x, seen.y, T.spd, dt);
     } else if (e.st === 'combat' || e.st === 'hunt') {
       e.st = 'hunt'; if (e.last) { const d = Math.hypot(e.last.x - e.x, e.last.y - e.y); if (d > 1.4) rdChase(e, e.last.x, e.last.y, T.spd, dt); else { e.wait += dt; if (e.wait > 2.2) { e.wait = 0; const f = j; e.last = { x: f.x + (Math.random() - .5) * 8, y: f.y + (Math.random() - .5) * 8 }; } } } else e.st = 'idle';
@@ -2650,12 +2727,12 @@ function rdUpdate(dt) {
   // médicaments
   for (const it of RD.items) if (!it.got && rdSafe(j, it) < 1.3 && j.hp < j.maxhp) { it.got = true; j.hp = Math.min(j.maxhp, j.hp + 45); rdFloat(j.x, j.y - 1, '+45 PV', '#6fcf6a'); sfx.ui(); }
   // visibilité
-  for (const e of RD.en) { e.vis = false; if (e.st === 'dead' || e.st === 'arrested') continue; for (const f of rdFriends()) { if (rdSafe(f, e) < 30 && rdLos(M, f.x, f.y, e.x, e.y)) { e.vis = true; break; } } }
+  for (const e of RD.en) { e.vis = false; if (e.st === 'dead' || e.st === 'arrested') continue; for (const f of rdFriends()) { if (rdSafe(f, e) < 30 && rdLos(M, f.x, f.y, e.x, e.y)) { e.vis = true; break; } } if (e.vis && EN[e.t].cloak && !(e.reveal > 0) && e.st !== 'stun') { let dm = 99; for (const f of rdFriends()) dm = Math.min(dm, rdSafe(f, e)); if (dm > 6) e.vis = false; } }
   for (const h of RD.hs) { h.vis = false; for (const f of rdFriends()) { if (rdSafe(f, h) < 30 && rdLos(M, f.x, f.y, h.x, h.y)) { h.vis = true; break; } } }
   // effets
   for (const t of RD.tr) { t.t -= dt; t.flash -= dt; } RD.tr = RD.tr.filter(t => t.t > 0);
   for (const p of RD.pt) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .96; p.vy *= .96; } RD.pt = RD.pt.filter(p => p.t < p.l);
-  for (const p of RD.pj) { p.t += dt; if (!p.landed && p.t >= p.dur) { p.landed = true; p.lt = 0; if (p.k === 'gren') sfx.clink(rdPanOf(p.x1)); if (p.k === 'flash') rdBang(p); } if (p.landed) { p.lt += dt; if (p.k === 'gren' && p.lt >= .9) { rdBoom(p); p.dead = true; } else if (p.k === 'flash') p.dead = true; else if (p.k === 'smoke') { RD.smk.push({ x: p.x1, y: p.y1, t: 0, r: 3.8, life: 11 }); sfx.smoke(rdPanOf(p.x1)); p.dead = true; } else if (p.k === 'fire') { RD.fires.push({ x: p.x1, y: p.y1, r: 3.4, t: 0, life: 9 }); sfx.molotov(rdPanOf(p.x1)); rdNoise(p.x1, p.y1, 24); RD.alarm = true; const bc = RD.bc, g = bc.createRadialGradient(p.x1 * TS, p.y1 * TS, 0, p.x1 * TS, p.y1 * TS, 3.6 * TS); g.addColorStop(0, 'rgba(8,6,4,.65)'); g.addColorStop(1, 'rgba(8,6,4,0)'); bc.fillStyle = g; bc.fillRect(p.x1 * TS - 4 * TS, p.y1 * TS - 4 * TS, 8 * TS, 8 * TS); p.dead = true; } } } RD.pj = RD.pj.filter(p => !p.dead);
+  for (const p of RD.pj) { p.t += dt; if (!p.landed && p.t >= p.dur) { p.landed = true; p.lt = 0; if (p.k === 'gren') sfx.clink(rdPanOf(p.x1)); if (p.k === 'flash') rdBang(p); } if (p.landed) { p.lt += dt; if (p.k === 'gren' && p.lt >= .9) { rdBoom(p); p.dead = true; } else if (p.k === 'flash') p.dead = true; else if (p.k === 'smoke') { RD.smk.push({ x: p.x1, y: p.y1, t: 0, r: 3.8, life: 11 }); sfx.smoke(rdPanOf(p.x1)); p.dead = true; } else if (p.k === 'iem') { rdIEM(p); p.dead = true; } else if (p.k === 'fire') { RD.fires.push({ x: p.x1, y: p.y1, r: 3.4, t: 0, life: 9 }); sfx.molotov(rdPanOf(p.x1)); rdNoise(p.x1, p.y1, 24); RD.alarm = true; const bc = RD.bc, g = bc.createRadialGradient(p.x1 * TS, p.y1 * TS, 0, p.x1 * TS, p.y1 * TS, 3.6 * TS); g.addColorStop(0, 'rgba(8,6,4,.65)'); g.addColorStop(1, 'rgba(8,6,4,0)'); bc.fillStyle = g; bc.fillRect(p.x1 * TS - 4 * TS, p.y1 * TS - 4 * TS, 8 * TS, 8 * TS); p.dead = true; } } } RD.pj = RD.pj.filter(p => !p.dead);
   for (const f of RD.fl) { f.t -= dt; f.y -= dt * .8; } RD.fl = RD.fl.filter(f => f.t > 0);
   for (const m of RD.msgs) m.t -= dt; RD.msgs = RD.msgs.filter(m => m.t > 0);
   RD.shake = Math.max(0, RD.shake - dt * 14); RD.hurt = Math.max(0, RD.hurt - dt); RD.flashT = Math.max(0, RD.flashT - dt);
@@ -2707,7 +2784,7 @@ function rdKey(k, e) {
   if (k === '1' || k === '2' || k === '3' || k === '4') { const i = +k - 1; if (alive(i)) rdSelect([RD.sq[i]], e.shiftKey); }
   else if (k === '5' || k === '0') rdSelect(RD.sq.filter((u, i) => alive(i)), false);
   else if (k === 'tab') { e.preventDefault(); const cur = RD.sq.findIndex(u => u.sel); for (let n = 1; n <= RD.sq.length; n++) { const i = (cur + n + RD.sq.length) % RD.sq.length; if (alive(i)) { rdSelect([RD.sq[i]], false); break; } } }
-  else if (k === 'g') rdArm('gren'); else if (k === 'f') rdArm('flash'); else if (k === 'v') rdArm('smoke'); else if (k === 'i') rdArm('fire'); else if (k === 'e') { for (const u of RD.sq) if (u.sel) rdCycleWeapon(u); } else if (k === 'b') rdArm('med'); else if (k === 'c') { RD.pan = { x: 0, y: 0 }; RD.zoom = 1; } else if (k === '+' || k === '=') RD.zoom = Math.min(2.2, rdZ() * 1.15); else if (k === '-' || k === '6') RD.zoom = Math.max(.55, rdZ() / 1.15);
+  else if (k === 'g') rdArm('gren'); else if (k === 'f') rdArm('flash'); else if (k === 'v') rdArm('smoke'); else if (k === 'i') rdArm('fire'); else if (k === 'n') rdArm('iem'); else if (k === 'e') { for (const u of RD.sq) if (u.sel) rdCycleWeapon(u); } else if (k === 'b') rdArm('med'); else if (k === 'c') { RD.pan = { x: 0, y: 0 }; RD.zoom = 1; } else if (k === '+' || k === '=') RD.zoom = Math.min(2.2, rdZ() * 1.15); else if (k === '-' || k === '6') RD.zoom = Math.max(.55, rdZ() / 1.15);
   else if (k === 'h') $('rdHelp').style.display = $('rdHelp').style.display === 'flex' ? 'none' : 'flex';
   else if ((e.ctrlKey || e.metaKey) && k === 'a') { e.preventDefault(); rdSelect(RD.sq.filter(u => u.hp > 0 && !u.dead), false); }
   else if (k === 'backspace' || k === 'delete') { for (const u of RD.sq) if (u.sel) { u.order = null; u.queue = []; } rdSqDirty = true; }
@@ -2780,11 +2857,36 @@ function rdSqUpdate() {
 }
 
 // ---------- Rendu du raid ----------
+function drawMachine(c, px, py, ang, s, f, t, still) {
+  const T = EN[f.t], k = T.mach, u = s, stun = f.st === 'stun', dead = f.st === 'dead'; c.save(); c.translate(px, py);
+  const sh = c.createRadialGradient(u * .1, u * .2, 0, u * .1, u * .2, u * .85); sh.addColorStop(0, 'rgba(0,0,0,.5)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sh; c.beginPath(); c.ellipse(u * .1, u * .2, u * .85, u * .65, 0, 0, 6.283); c.fill();
+  c.rotate(ang); const eye = dead ? '#331' : stun ? '#7fe0ff' : (f.st === 'combat' ? '#ff3030' : '#ffb030');
+  if (k === 'drone') {
+    c.translate(0, dead ? 0 : Math.sin(t * 9 + (f.ph || 0)) * .04 * u);
+    for (const [dx, dy] of [[.34, .34], [.34, -.34], [-.34, .34], [-.34, -.34]]) { c.strokeStyle = '#2d343c'; c.lineWidth = .1 * u; c.beginPath(); c.moveTo(0, 0); c.lineTo(dx * u, dy * u); c.stroke(); c.fillStyle = 'rgba(200,215,230,.3)'; c.beginPath(); c.arc(dx * u, dy * u, .21 * u, 0, 6.283); c.fill(); if (!dead && !stun && !still) { const ra = t * 45 + dx * 9; c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(dx * u + Math.cos(ra) * .21 * u, dy * u + Math.sin(ra) * .21 * u); c.lineTo(dx * u - Math.cos(ra) * .21 * u, dy * u - Math.sin(ra) * .21 * u); c.stroke(); } }
+    const g = c.createRadialGradient(-.06 * u, -.06 * u, 0, 0, 0, .3 * u); g.addColorStop(0, '#b4bec9'); g.addColorStop(1, '#434b55'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, .27 * u, 0, 6.283); c.fill(); c.strokeStyle = '#0b0d10'; c.lineWidth = 1.2; c.stroke();
+    c.fillStyle = '#d33a2a'; c.fillRect(-.12 * u, -.05 * u, .1 * u, .1 * u); c.shadowColor = eye; c.shadowBlur = 8; c.fillStyle = eye; c.beginPath(); c.arc(.14 * u, 0, .06 * u, 0, 6.283); c.fill(); c.shadowBlur = 0;
+  } else if (k === 'sent') {
+    c.fillStyle = '#2a2f36'; c.strokeStyle = '#0b0d10'; c.lineWidth = 1.5; c.beginPath(); for (let i = 0; i < 8; i++) { const a = i * .785 + .39; c.lineTo(Math.cos(a) * .62 * u, Math.sin(a) * .62 * u); } c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#3b424b'; c.beginPath(); c.arc(0, 0, .4 * u, 0, 6.283); c.fill(); c.stroke();
+    c.fillStyle = '#15181c'; c.fillRect(.2 * u, -.16 * u, .75 * u, .1 * u); c.fillRect(.2 * u, .06 * u, .75 * u, .1 * u); c.fillStyle = '#6b7480'; c.fillRect(.1 * u, -.2 * u, .22 * u, .4 * u);
+    c.shadowColor = eye; c.shadowBlur = 9; c.fillStyle = eye; c.beginPath(); c.arc(0, 0, .09 * u, 0, 6.283); c.fill(); c.shadowBlur = 0;
+  } else {
+    const sc = T.boss ? 1.35 : 1; c.scale(sc, sc);
+    c.fillStyle = '#2b3037'; c.strokeStyle = '#0b0d10'; c.lineWidth = 1.5; rrect(c, -.42 * u, -.48 * u, .84 * u, .96 * u, .12 * u); c.fill(); c.stroke();
+    const g = c.createLinearGradient(0, -.5 * u, 0, .5 * u); g.addColorStop(0, '#5a636e'); g.addColorStop(1, '#2c3239'); c.fillStyle = g; rrect(c, -.34 * u, -.4 * u, .68 * u, .8 * u, .1 * u); c.fill(); c.stroke();
+    c.fillStyle = T.boss ? '#a8321f' : '#d9a32a'; c.fillRect(-.3 * u, -.06 * u, .6 * u, .12 * u);
+    for (const sg of [-1, 1]) { c.fillStyle = '#1a1d21'; c.fillRect(.18 * u, sg * .46 * u - .06 * u, .8 * u, .12 * u); c.fillStyle = '#4a525c'; c.beginPath(); c.arc(.1 * u, sg * .46 * u, .17 * u, 0, 6.283); c.fill(); c.stroke(); }
+    c.fillStyle = '#3d444d'; c.beginPath(); c.arc(.06 * u, 0, .22 * u, 0, 6.283); c.fill(); c.stroke(); c.shadowColor = eye; c.shadowBlur = 10; c.fillStyle = eye; c.fillRect(.14 * u, -.09 * u, .1 * u, .18 * u); c.shadowBlur = 0;
+  }
+  if (dead) { c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.arc(0, 0, .5 * u, 0, 6.283); c.fill(); }
+  c.restore();
+}
 function rdActorStyle(f) {
   if (f.k === 'j') return { jacket: '#2c3340', pants: '#1b2029', helmet: true, pads: true, gun: WP[f.wp].gun, vest: '#1e242d', band: '#d9b43a', fire: f.fl > 0, swing: f.mv ? f.swing : 0 };
   if (f.k === 'a') { const Rr = { fus: { jacket: '#2f5f74', pants: '#1b2a33', vest: '#254552', band: '#5fb0d6', pack: '#22333a' }, sni: { jacket: '#4c5a38', pants: '#3a4429', vest: '#394428', boonie: '#56653f', pack: '#3a4429', helmet: false }, bre: { jacket: '#8a4a22', pants: '#2b2420', vest: '#4a3a2e', bulk: 1.18, band: '#e0803a', pack: '#3e332a' }, med: { jacket: '#cfd3d4', pants: '#4a5558', vest: '#e8e8e4', cross: true, band: '#d33a2a', pack: '#8a2a22' } }[f.role] || {}; return Object.assign({ helmet: true, gun: WP[f.wp].gun, swing: f.mv ? f.swing : 0, skin: '#c9a07c', fire: f.fl > 0 }, Rr); }
   if (f.k === 'h') return { jacket: '#e07a1c', pants: '#c8620f', sack: f.st === 'tied', tied: f.st === 'tied', skin: f.skin, swing: f.st === 'fleeing' ? f.swing : 0, boots: '#3a2a1a' };
-  const T = EN[f.t]; return { jacket: T.jacket, pants: T.pants, hood: T.hood, mask: T.mask, vest: T.vest, mohawk: T.mohawk, stripe: T.stripe, cap: T.cap, skin: f.skin, gun: f.st === 'arrested' ? 0 : T.gun, swing: f.mv ? f.swing : 0, tied: f.st === 'arrested' };
+  const T = EN[f.t]; return { cyber: T.cyber, visor: T.visor, bulk: T.bulk, jacket: T.jacket, pants: T.pants, hood: T.hood, mask: T.mask, vest: T.vest, mohawk: T.mohawk, stripe: T.stripe, cap: T.cap, skin: f.skin, gun: f.st === 'arrested' ? 0 : T.gun, swing: f.mv ? f.swing : 0, tied: f.st === 'arrested' };
 }
 function rdRender(t) {
   const M = RD.M, c = cI, j = RD.judge;
@@ -2807,7 +2909,7 @@ function rdRender(t) {
     c.restore();
   }
   // cadavres et arrêtés
-  const lie = (f, st) => { const o = rdActorStyle(f); o.lying = f.st === 'dead' || f.dead; o.gun = 0; if (o.lying) { o.jacket = shadeCol(o.jacket.length === 7 ? o.jacket : '#555555', .75); } drawPerson(c, sx(f.x), sy(f.y), f.da || 0, TS * 1.5, o); };
+  const lie = (f, st) => { const o = rdActorStyle(f); o.lying = f.st === 'dead' || f.dead; o.gun = 0; if (o.lying) { o.jacket = shadeCol((o.jacket && o.jacket.length === 7) ? o.jacket : '#555555', .75); } if (f.k === 'e' && EN[f.t].mach) drawMachine(c, sx(f.x), sy(f.y), f.da || 0, TS * 1.5, f, 0, true); else drawPerson(c, sx(f.x), sy(f.y), f.da || 0, TS * 1.5, o); };
   for (const e of RD.en) if (e.st === 'dead') lie(e); for (const h of RD.hs) if (h.st === 'dead') lie(h); for (const a of RD.allies) if (a.dead) lie(a);
   for (const u of RD.sq) {
     if (u.hp <= 0 || u.dead) continue; const x = sx(u.x), y = sy(u.y);
@@ -2819,7 +2921,13 @@ function rdRender(t) {
   for (const f of cone) {
     const o = rdActorStyle(f); let a = f.a; if (f.st === 'tied') { a = f.a; }
     if (f.st === 'stun') { o.gun = 0; }
-    drawPerson(c, sx(f.x), sy(f.y), a, TS * 1.5, o);
+    const ET = f.k === 'e' ? EN[f.t] : null; let ga = c.globalAlpha;
+    if (ET && ET.cloak) c.globalAlpha = f.reveal > 0 || f.st === 'stun' ? .85 : .32 + .12 * Math.sin(t * 9);
+    if (ET && ET.mach) drawMachine(c, sx(f.x), sy(f.y), a, TS * 1.5, f, t, false); else drawPerson(c, sx(f.x), sy(f.y), a, TS * 1.5, o);
+    c.globalAlpha = ga;
+    if (ET && ET.shield) { const sg = f.shHit > 0 ? 'rgba(180,255,255,.95)' : 'rgba(80,220,255,.7)'; c.strokeStyle = sg; c.lineWidth = f.shHit > 0 ? 5 : 3; c.beginPath(); c.arc(sx(f.x), sy(f.y), TS * 1.05, a - 1, a + 1); c.stroke(); c.strokeStyle = 'rgba(80,220,255,.2)'; c.lineWidth = 9; c.stroke(); }
+    if (ET && ET.laser && f.st === 'combat' && f.tgt && f.cd < .6) { c.strokeStyle = 'rgba(255,40,40,.55)'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(sx(f.x), sy(f.y)); c.lineTo(sx(f.tgt.x), sy(f.tgt.y)); c.stroke(); }
+    if (f.st === 'stun' && ET && (ET.mach || ET.cyber)) { c.strokeStyle = 'rgba(120,220,255,' + (.5 + .4 * Math.sin(t * 40)) + ')'; c.lineWidth = 2; c.beginPath(); for (let q = 0; q < 5; q++) { const aa = q * 1.3 + t * 8, rr = TS * (.5 + .3 * Math.sin(t * 20 + q)); c.moveTo(sx(f.x), sy(f.y)); c.lineTo(sx(f.x) + Math.cos(aa) * rr, sy(f.y) + Math.sin(aa) * rr); } c.stroke(); }
     if (f.hit > 0) { c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.arc(sx(f.x), sy(f.y), TS * .7, 0, 6.283); c.fill(); }
   }
   for (const p of RD.pt) { const x = sx(p.x), y = sy(p.y), k = p.t / p.l; if (p.k === 's') { c.fillStyle = `rgba(200,200,205,${.28 * (1 - k)})`; c.beginPath(); c.arc(x, y, TS * (.25 + k * .8), 0, 6.283); c.fill(); } else if (p.k === 'c') { c.fillStyle = `rgba(214,170,60,${1 - k * .6})`; c.fillRect(x - 1.5, y - 1, 3, 2); } else { c.fillStyle = `rgba(255,${200 - k * 120 | 0},90,${1 - k})`; c.fillRect(x - 1, y - 1, 2.5, 2.5); } }
@@ -2846,7 +2954,7 @@ function rdRender(t) {
   }
   const zz = rdZ(), mxz = RD.mouse ? (RD.mouse.x - rdW / 2) / zz + rdW / 2 : 0, myz = RD.mouse ? (RD.mouse.y - rdH / 2) / zz + rdH / 2 : 0;
   if (RD.armed && RD.mouse && RD.mouse.on) {
-    const src = RD.sq.find(u => u.sel && u.hp > 0 && !u.dead && u.inv[RD.armed] && u.tcd <= 0) || RD.sq.find(u => u.sel); const R = RD.armed === 'flash' ? 9 : RD.armed === 'smoke' ? 3.8 : RD.armed === 'fire' ? 3.4 : 5.5;
+    const src = RD.sq.find(u => u.sel && u.hp > 0 && !u.dead && u.inv[RD.armed] && u.tcd <= 0) || RD.sq.find(u => u.sel); const R = RD.armed === 'flash' ? 9 : RD.armed === 'smoke' ? 3.8 : RD.armed === 'fire' ? 3.4 : RD.armed === 'iem' ? 8 : 5.5;
     if (src) { c.strokeStyle = 'rgba(232,131,58,.3)'; c.lineWidth = 1.5; c.setLineDash([4, 6]); c.beginPath(); c.arc(sx(src.x), sy(src.y), TS * 16, 0, 6.283); c.stroke(); c.setLineDash([]); }
     c.strokeStyle = RD.armed === 'flash' ? '#9ad0ff' : '#ff8a4a'; c.fillStyle = RD.armed === 'flash' ? 'rgba(154,208,255,.1)' : 'rgba(255,120,60,.12)'; c.lineWidth = 2; c.beginPath(); c.arc(mxz, myz, TS * R, 0, 6.283); c.fill(); c.stroke();
     c.beginPath(); c.moveTo(mxz - 10, myz); c.lineTo(mxz + 10, myz); c.moveTo(mxz, myz - 10); c.lineTo(mxz, myz + 10); c.stroke();
@@ -2897,7 +3005,7 @@ function rdHud(c, t) {
   const en = RD.en.filter(e => e.st !== 'dead' && e.st !== 'arrested').length, hs = RD.hs.filter(x => x.st === 'safe').length;
   c.textAlign = 'left'; c.fillStyle = 'rgba(10,22,38,.82)'; rrect(c, 10, 8, 230, 62, 6); c.fill(); c.strokeStyle = '#2d4a68'; c.lineWidth = 1; c.stroke();
   c.fillStyle = '#E8833A'; c.font = '800 11px system-ui'; c.fillText((RD.raid.name + ' · RAID').toUpperCase(), 20, 24);
-  c.fillStyle = '#e8eef5'; c.font = '600 13px system-ui'; c.fillText('Criminels : ' + en + ' / ' + RD.total.en, 20, 42); c.fillText('Otages sauvés : ' + hs + ' / ' + RD.total.hs + (RD.lost ? '  (perdus ' + RD.lost + ')' : ''), 20, 60);
+  c.fillStyle = '#e8eef5'; c.font = '600 13px system-ui'; c.fillText(MEGA[LEVEL.n].foe + ' : ' + en + ' / ' + RD.total.en, 20, 42); c.fillText('Otages sauvés : ' + hs + ' / ' + RD.total.hs + (RD.lost ? '  (perdus ' + RD.lost + ')' : ''), 20, 60);
   rdSqUpdate();
   c.restore();
   // boutons
@@ -2924,7 +3032,7 @@ function rdPortrait(key, size) {
   const g = c.createRadialGradient(size / 2, size * .5, 2, size / 2, size / 2, size * .75); g.addColorStop(0, '#2c4560'); g.addColorStop(1, '#0c1522'); c.fillStyle = g; c.fillRect(0, 0, size, size);
   c.strokeStyle = 'rgba(120,170,220,.12)'; for (let i = 0; i <= size; i += size / 8) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, size); c.moveTo(0, i); c.lineTo(size, i); c.stroke(); }
   const f = ROLES[key] ? { k: key === 'jug' ? 'j' : 'a', role: key, wp: LOAD.u[key].wp, fl: 0, mv: false, swing: 0 } : { k: 'e', t: key, st: 'idle', skin: '#d8b08c', mv: false, swing: 0 };
-  const o = rdActorStyle(f); o.fire = false; drawPerson(c, size * .5, size * .72, -Math.PI / 2, size * .42, o);
+  if (f.k === 'e' && EN[f.t].mach) drawMachine(c, size * .5, size * .6, -Math.PI / 2, size * .42, f, 0, true); else { const o = rdActorStyle(f); o.fire = false; drawPerson(c, size * .5, size * .72, -Math.PI / 2, size * .42, o); }
   return rdPC[kk] = cv.toDataURL();
 }
 const rdIC = {};
@@ -2935,6 +3043,7 @@ function rdIcon(kind) {
   else if (kind === 'smoke') { c.fillStyle = '#c4cad2'; for (const [x, y, r] of [[-5, 2, 6], [3, 3, 7], [0, -4, 6], [6, -2, 4]]) { c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill(); } c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1; c.beginPath(); c.arc(3, 3, 7, 0, 6.283); c.stroke(); }
   else if (kind === 'med') { c.fillStyle = '#f2f2ee'; c.strokeStyle = '#555'; c.lineWidth = 1.2; rrect(c, -9, -7, 18, 14, 3); c.fill(); c.stroke(); c.fillStyle = '#d33a2a'; c.fillRect(-2, -5, 4, 10); c.fillRect(-5, -2, 10, 4); }
   else if (kind === 'fire') { c.fillStyle = '#8a4a1a'; c.strokeStyle = '#111'; c.lineWidth = 1.3; c.beginPath(); c.ellipse(0, 5, 5, 6, 0, 0, 6.283); c.fill(); c.stroke(); c.fillStyle = '#ff9a2a'; c.beginPath(); c.moveTo(0, -11); c.quadraticCurveTo(7, -3, 3, 1); c.quadraticCurveTo(0, -2, -3, 1); c.quadraticCurveTo(-7, -3, 0, -11); c.fill(); c.fillStyle = '#ffe070'; c.beginPath(); c.moveTo(0, -6); c.quadraticCurveTo(3, -2, 0, 0); c.quadraticCurveTo(-3, -2, 0, -6); c.fill(); }
+  else if (kind === 'iem') { c.strokeStyle = '#7fe0ff'; c.lineWidth = 1.5; c.beginPath(); c.arc(0, 0, 9, 0, 6.283); c.stroke(); c.fillStyle = '#bff3ff'; c.beginPath(); c.moveTo(2, -10); c.lineTo(-5, 1); c.lineTo(0, 1); c.lineTo(-2, 10); c.lineTo(6, -2); c.lineTo(1, -2); c.closePath(); c.fill(); }
   else if (kind === 'mine') { c.fillStyle = '#33373d'; c.strokeStyle = '#111'; c.lineWidth = 1.5; c.beginPath(); c.arc(0, 0, 9, 0, 6.283); c.fill(); c.stroke(); c.fillStyle = '#e5483b'; c.beginPath(); c.arc(0, 0, 3, 0, 6.283); c.fill(); }
   else if (kind === 'shell') { c.fillStyle = '#c9a23a'; c.strokeStyle = '#111'; c.lineWidth = 1.3; c.beginPath(); c.moveTo(-9, -4); c.lineTo(3, -4); c.quadraticCurveTo(10, 0, 3, 4); c.lineTo(-9, 4); c.closePath(); c.fill(); c.stroke(); c.fillStyle = '#7a2a1a'; c.fillRect(-9, -4, 4, 8); }
   return rdIC[kind] = cv.toDataURL();
@@ -2947,7 +3056,7 @@ rdHelp.innerHTML = `<div class="box"><h2>COMMANDES DU RAID</h2><table>
 <tr><td>Clic sur un équipier · 1 2 3 4</td><td>sélectionner (Maj = ajouter) · Tab = suivant · 5 ou double-clic = toute l'équipe · Ctrl+A</td></tr>
 <tr><td>Glisser un cadre</td><td>sélectionner plusieurs équipiers</td></tr>
 <tr><td>Clic gauche ou droit sur le sol</td><td>déplacer la sélection (Maj = ajouter des étapes) · Retour arrière = stop</td></tr>
-<tr><td>F · G · V · I · B</td><td>Flash · Grenade · Fumigène · Incendiaire (puis clic pour lancer) · Trousse de soins (immédiat)</td></tr>
+<tr><td>F · G · V · I · N · B</td><td>Flash · Grenade · Fumigène · Incendiaire · IEM (puis clic pour lancer) · Trousse de soins (immédiat)</td></tr>
 <tr><td>E · bouton « Arme »</td><td>changer d'arme (auto : fusil à pompe de près, fusil de précision de loin)</td></tr>
 <tr><td>Boutons de la carte</td><td>équipement de chacun · poste : suit le juge / tient la position / embuscade</td></tr>
 <tr><td>Z Q S D · W A S D · flèches</td><td>déplacer le juge directement</td></tr>
@@ -2964,20 +3073,27 @@ function openBriefing(raid) { briefRaid = raid; prePause = opts.paused; opts.pau
 function closeBriefing() { rdBrief.style.display = 'none'; briefRaid = null; opts.paused = prePause; refreshTop(); }
 function startBrief() { const r = briefRaid; try { localStorage.setItem('ebbtideLoad2', JSON.stringify(LOAD)); } catch (e) { } closeBriefing(); opts.paused = false; refreshTop(); enterRaid(r); }
 function rdBriefKey(k, e) { if (k === 'escape') closeBriefing(); else if (k === 'enter' && !(e.target && /^(SELECT|BUTTON|INPUT)$/.test(e.target.tagName))) startBrief(); }
+function foeTraits(T) { const t = []; if (T.armor) t.push('Blindage ' + T.armor); if (T.regen) t.push('Se régénère'); if (T.rush) t.push('Fonce sur vous'); if (T.kami) t.push('Kamikaze'); if (T.stat) t.push('Fixe'); if (T.cloak) t.push('Camouflé'); if (T.shield) t.push('Bouclier frontal'); if (T.laser) t.push('Laser de visée'); if (T.flashImm) t.push('Ignore le flash'); if (T.sense) t.push('Détecte à 360°'); if (T.emp) t.push('Vulnérable aux EMP'); if (T.summon) t.push('Invoque des drones'); return t.join(' · ') || 'Aucune protection'; }
+function intelHtml() {
+  const M0 = MEGA[LEVEL.n], FD = FOES[M0.fac], ids = FD.pool.map(p => p[0]).concat(FD.chief);
+  return `<h3 class="bfx">RENSEIGNEMENT · ${M0.name.toUpperCase()}</h3><p class="bfh">${M0.blurb}<br><b>Conseil :</b> ${WEAK[M0.fac]}</p><div class="bfr bft2">${ids.map(id => { const T = EN[id]; return `<div class="bfe"><img class="bfp s" src="${rdPortrait(id, 64)}"><div><b>${T.label || id}</b><br><small>${T.hp} PV · ${foeTraits(T)}</small></div></div>`; }).join('')}</div><p class="bfh" style="margin-top:8px"><button class="ib" id="bfArs" style="background:#242933;border:1px solid var(--ln);color:var(--tx);padding:7px 12px;cursor:pointer">Ouvrir l'arsenal complet</button></p>`;
+}
 function buildBrief() {
   const r = briefRaid, hint = r.kind === 'rescue' ? 'Otages à libérer. Pas de grenade à moins de 5 m d\'un otage. Fumigène + flash pour approcher. Les otages sont exécutés si l\'alarme dure.' : r.kind === 'arrest' ? 'Un chef lourdement armé commande la planque. Brècheur et grenades devant, tireur d\'élite en embuscade au fond de la pièce.' : 'Otages ET chef : sécurisez les otages d\'abord, puis capturez le chef.';
-  const opt = (obj, cur, keyFn) => Object.keys(obj).map(k => `<option value="${k}" ${k === cur ? 'selected' : ''}>${keyFn(k)}</option>`).join('');
+  const opt = (obj, cur, keyFn) => Object.keys(obj).map(k => `<option value="${k}" ${k === cur ? 'selected' : ''} ${isUnlocked(k) ? '' : 'disabled'}>${isUnlocked(k) ? '' : '🔒 '}${keyFn(k)}${isUnlocked(k) ? '' : ' (Mégapole ' + (UNLOCK[k] + 1) + ')'}</option>`).join('');
+  for (const role of Object.keys(LOAD.u)) { const L = LOAD.u[role], D = DEF_LOAD.u[role]; if (!isUnlocked(L.wp)) L.wp = D.wp; if (L.wp2 && !isUnlocked(L.wp2)) L.wp2 = D.wp2; if (!isUnlocked(L.arm)) L.arm = D.arm; L.it = L.it.map((q, i) => isUnlocked(q) ? q : (D.it[i] && isUnlocked(D.it[i]) ? D.it[i] : 'none')); }
   let h = `<div class="bf"><h2>RAID · ${r.name.toUpperCase()}</h2><p class="bfm">${r.kind === 'rescue' ? 'Sauvetage d\'otages' : r.kind === 'arrest' ? 'Arrestation du chef' : 'Otages et chef'} · criminels estimés : 6 à 10</p><p class="bfh">${hint}</p><div class="bfr">`;
   for (const role of ['jug', 'fus', 'sni', 'bre', 'med']) {
     const R = ROLES[role], L = LOAD.u[role], on = role === 'jug' || LOAD.team.includes(role), A = ARM[L.arm], W = WP[L.wp];
     h += `<div class="bfc ${on ? 'on' : ''}" data-r="${role}"><img class="bfp" src="${rdPortrait(role, 96)}"><label class="bft"><input type="checkbox" data-k="team" ${on ? 'checked' : ''} ${role === 'jug' ? 'disabled' : ''}> <b style="color:${R.col}">${R.name}</b></label><p>${R.desc}</p>`;
-    h += `<label>Arme 1 <select data-k="wp">${R.wps.map(k => `<option value="${k}" ${k === L.wp ? 'selected' : ''}>${WP[k].n}</option>`).join('')}</select></label>`;
-    h += `<label>Arme 2 <select data-k="wp2"><option value="none">Aucune</option>${R.wps.map(k => `<option value="${k}" ${k === L.wp2 ? 'selected' : ''}>${WP[k].n}</option>`).join('')}</select></label>`;
+    h += `<label>Arme 1 <select data-k="wp">${R.wps.map(k => `<option value="${k}" ${k === L.wp ? 'selected' : ''} ${isUnlocked(k) ? '' : 'disabled'}>${isUnlocked(k) ? '' : '🔒 '}${WP[k].n}${isUnlocked(k) ? '' : ' (Mégapole ' + (UNLOCK[k] + 1) + ')'}</option>`).join('')}</select></label>`;
+    h += `<label>Arme 2 <select data-k="wp2"><option value="none">Aucune</option>${R.wps.map(k => `<option value="${k}" ${k === L.wp2 ? 'selected' : ''} ${isUnlocked(k) ? '' : 'disabled'}>${isUnlocked(k) ? '' : '🔒 '}${WP[k].n}${isUnlocked(k) ? '' : ' (Mégapole ' + (UNLOCK[k] + 1) + ')'}</option>`).join('')}</select></label>`;
     h += `<label>Armure <select data-k="arm">${opt(ARM, L.arm, k => ARM[k].n)}</select></label>`;
     for (let i = 0; i < 5; i++) h += `<label>Équipement ${i + 1} <select data-k="it${i}">${opt(ITEMS, L.it[i] || 'none', k => ITEMS[k].n)}</select></label>`;
     h += `<div class="bfs">${Math.round(R.hp * A.hp)} PV · vitesse ${Math.round(A.spd * 100)} % · ${W.n} (dégâts ${W.dmg}, portée ${W.rng})${WP[L.wp2] ? ' · ' + WP[L.wp2].n + ' (dégâts ' + WP[L.wp2].dmg + ', portée ' + WP[L.wp2].rng + ')' : ''}</div></div>`;
   }
-  h += `</div><h3 class="bfx">MENACES</h3><div class="bfr bft2">${[['punk', 'Voyou', 'Pistolet, réagit vite. Crête rouge.'], ['thug', 'Tueur', 'Pistolet-mitrailleur, cagoule noire.'], ['bruiser', 'Brute', 'Fusil à pompe et gilet : mortel de près.'], ['chief', 'Chef', 'Très résistant, crête jaune. À capturer ou abattre.']].map(([k, n, d]) => `<div class="bfe"><img class="bfp s" src="${rdPortrait(k, 64)}"><div><b>${n}</b><br><small>${d}</small></div></div>`).join('')}</div><div class="bfb"><button class="big" id="bfGo">LANCER LE RAID</button><button class="ib" id="bfNo">Annuler (Échap)</button></div></div>`;
+  h += `</div>${intelHtml()}`;
+  h += `<div class="bfb"><button class="big" id="bfGo">LANCER LE RAID</button><button class="ib" id="bfNo">Annuler (Échap)</button></div></div>`;
   rdBrief.innerHTML = h;
   rdBrief.querySelectorAll('.bfc').forEach(card => {
     const role = card.dataset.r;
@@ -2988,9 +3104,28 @@ function buildBrief() {
       const sc = rdBrief.scrollTop; buildBrief(); rdBrief.scrollTop = sc;
     });
   });
-  $('bfGo').onclick = startBrief; $('bfNo').onclick = closeBriefing;
+  $('bfGo').onclick = startBrief; $('bfNo').onclick = closeBriefing; if ($('bfArs')) $('bfArs').onclick = toggleArsenal;
 }
 
+// ---------- Arsenal et renseignement ----------
+const arsEl = document.createElement('div'); arsEl.id = 'ars'; document.body.appendChild(arsEl); let arsPrev = false;
+function toggleArsenal() {
+  if (arsEl.style.display === 'flex') { arsEl.style.display = 'none'; opts.paused = arsPrev; refreshTop(); return; }
+  if (RD.active || !G_.started) return; arsPrev = opts.paused; opts.paused = true; refreshTop(); buildArsenal(); arsEl.style.display = 'flex';
+}
+function buildArsenal() {
+  const lock = id => isUnlocked(id) ? '<b style="color:#6fcf6a">✔ disponible</b>' : '<b style="color:#e6b030">🔒 Mégapole ' + (UNLOCK[id] + 1) + '</b>';
+  const WD = { pistol: 'Précis, faible contre les blindés.', rifle: 'Cadence élevée, polyvalent.', shotgun: 'Dévastateur de près, perce les cyborgs.', sniper: 'Longue portée, gros dégâts.', ap: 'Perce 70 % du blindage.', emp: 'Paralyse cyborgs, robots et IA à chaque tir.', plasma: 'Perce 85 % du blindage, dégâts élevés.', rail: 'Ignore tout blindage, traverse les boucliers.' };
+  let h = `<div class="arsb"><div class="arsh"><h2>ARSENAL ET RENSEIGNEMENT</h2><button class="ib" id="arsX">Fermer</button></div><h3>Armes</h3><table class="arst"><tr><th>Arme</th><th>Dégâts</th><th>Tirs/s</th><th>Portée</th><th>Perforation</th><th>Usage</th><th>État</th></tr>`;
+  for (const k of Object.keys(WP)) { const W = WP[k]; h += `<tr class="${isUnlocked(k) ? '' : 'lk'}"><td><b>${W.n}</b></td><td>${W.dmg}</td><td>${(1 / W.cd).toFixed(1)}</td><td>${W.rng}</td><td>${Math.round((W.pierce || 0) * 100)} %</td><td>${WD[k]}</td><td>${lock(k)}</td></tr>`; }
+  h += `</table><h3>Armures</h3><table class="arst"><tr><th>Armure</th><th>Vie</th><th>Vitesse</th><th>État</th></tr>`;
+  for (const k of Object.keys(ARM)) h += `<tr class="${isUnlocked(k) ? '' : 'lk'}"><td><b>${ARM[k].n}</b></td><td>× ${ARM[k].hp}</td><td>${Math.round(ARM[k].spd * 100)} %</td><td>${lock(k)}</td></tr>`;
+  h += `</table><h3>Équipement</h3><table class="arst"><tr><th>Objet</th><th>Touche</th><th>Effet</th><th>État</th></tr>`;
+  for (const k of Object.keys(ITEMS)) { if (k === 'none') continue; h += `<tr class="${isUnlocked(k) ? '' : 'lk'}"><td><b>${ITEMS[k].n}</b></td><td>${ITEMS[k].k}</td><td>${ITEMS[k].d}</td><td>${lock(k)}</td></tr>`; }
+  h += `</table><h3>Menaces par mégapole</h3>`;
+  MEGA.forEach((m, i) => { const FD = FOES[m.fac], ids = FD.pool.map(p => p[0]).concat(FD.chief); h += `<div class="arsm ${i === LEVEL.n ? 'cur' : ''}"><h4>${m.name}${i === LEVEL.n ? ' · ACTUELLE' : ''}</h4><p>${m.blurb}<br><b>Conseil :</b> ${WEAK[m.fac]}</p><div class="bfr bft2">${ids.map(id => { const T = EN[id]; return `<div class="bfe"><img class="bfp s" src="${rdPortrait(id, 64)}"><div><b>${T.label || id}</b><br><small>${T.hp} PV · ${foeTraits(T)}</small></div></div>`; }).join('')}</div></div>`; });
+  h += `</div>`; arsEl.innerHTML = h; $('arsX').onclick = toggleArsenal;
+}
 // ---------- Marqueurs et accès depuis la carte ----------
 function nearRaid() {
   const j = units.find(u => u.type === 'JD'); if (!j) return null; let best = null, bd = 1e9;
@@ -3013,13 +3148,13 @@ function drawRaidMarks(t) {
   }
 }
 // ---------- Campagne : niveaux, objectifs verrouillés ----------
-const LEVELS = [{ name: 'Secteur 1 · Le Port', tod: 1 }, { name: 'Secteur 2 · Quartier Nord', tod: 2 }, { name: 'Secteur 3 · Zone industrielle', tod: 1 }, { name: 'Secteur 4 · Centre-ville', tod: 2 }, { name: 'Secteur 5 · Le Bunker', tod: 2 }];
+const LEVELS = MEGA;
 let WAY = null, smapOpen = false, smapPrev = false, smapSel = null, lvlPrev = false, smTimer = 0;
 const gridName = (x, z) => 'ABCDEFGHIJ'[Math.max(0, Math.min(9, Math.floor((x + HALF) / 100)))] + (Math.max(0, Math.min(9, Math.floor((z + HALF) / 100))) + 1);
 function loadLevel() {
   LEVEL.seed = LEVEL.n; makeCity(); bData = new Float32Array(buildings); nBuildings = bData.length / 5;
   gl.bindBuffer(gl.ARRAY_BUFFER, bBuf); gl.bufferData(gl.ARRAY_BUFFER, bData, gl.STATIC_DRAW);
-  resetWalls(); blockDirty = true; makeRuins(); pickRaids(); redrawMiniBg(); opts.tod = LEVELS[LEVEL.n].tod; WAY = null; smapSel = null; buildField(FC, FC); refreshTop();
+  resetWalls(); blockDirty = true; makeRuins(); pickRaids(); redrawMiniBg(); opts.tod = LEVELS[LEVEL.n].tod; if ($('tFoe')) $('tFoe').textContent = LEVELS[LEVEL.n].foe; WAY = null; smapSel = null; buildField(FC, FC); refreshTop();
 }
 function unlockNext(why) {
   const r = RAIDS.find(x => x.locked); if (!r) return; r.locked = false;
@@ -3028,8 +3163,8 @@ function unlockNext(why) {
 function levelComplete() {
   WV.phase = 'done'; const n = LEVEL.n; if (n >= LEVELS.length - 1) { endGame('win'); return; }
   lvlPrev = opts.paused; opts.paused = true; refreshTop(); sfx.win();
-  $('lvlT').textContent = 'SECTEUR ' + (n + 1) + ' SÉCURISÉ';
-  $('lvlP').innerHTML = `${LEVELS[n].name}<br>Criminels neutralisés : <b>${fmt(S.kills)}</b><br>Bâtiments libérés : <b>${RAIDS.filter(r => r.done).length}/${RAIDS.length}</b><br><br>Prochain secteur : <b>${LEVELS[n + 1].name}</b><br>Nouvelle ville, adversaires plus nombreux. Vos unités sont soignées et réapprovisionnées, vous gardez vos points d'appui.`;
+  $('lvlT').textContent = 'MÉGAPOLE ' + (n + 1) + ' LIBÉRÉE'; const nx = LEVELS[n + 1], newW = Object.keys(UNLOCK).filter(k => UNLOCK[k] === n + 1).map(k => (WP[k] || ITEMS[k] || ARM[k]).n);
+  $('lvlP').innerHTML = `${LEVELS[n].name}<br>Criminels neutralisés : <b>${fmt(S.kills)}</b><br>Bâtiments libérés : <b>${RAIDS.filter(r => r.done).length}/${RAIDS.length}</b><br><br>Prochaine destination : <b>${nx.name}</b><br><i>${nx.blurb}</i><br><br>Nouvel arsenal : <b>${newW.join(', ') || 'aucun'}</b><br>Vos unités sont soignées et réapprovisionnées, vous gardez vos points d'appui.`;
   $('lvl').style.display = 'flex';
 }
 function startLevel(n) {
@@ -3040,9 +3175,11 @@ function startLevel(n) {
   let k = 0; for (const u of units) { u.hp = u.maxhp; u.order = null; u.x = FOBX + (k % 6 - 2.5) * 5; u.z = FOBZ + 8 + ((k / 6) | 0) * 5; k++; if (u.men) u.men.forEach(m => { m.x = u.x + m.ox; m.z = u.z + m.oz; }); if (u.type !== 'JD') { u.follow = true; u.hold = false; u.amb = false; } for (const kk in INV0[u.type]) u.inv[kk] = INV0[u.type][kk]; }
   const jd = units.find(u => u.type === 'JD'); if (jd) { selectSet([jd], false); cam.tx = jd.x; cam.tz = jd.z; } camFollow = true; cam.dist = 130;
   G_.over = null; opts.paused = lvlPrev; refreshTop(); seed = 4242 + n * 17; selDirty = true;
-  bannerBig(LEVELS[n].name.toUpperCase(), 'Nouvelle ville · première vague dans 45 s · ouvrez la carte (M)');
+  PROG.max = Math.max(PROG.max, n); try { localStorage.setItem('ebbtideProg', JSON.stringify(PROG)); } catch (e) { } announceUnlocks(n);
+  bannerBig(LEVELS[n].name.toUpperCase(), LEVELS[n].foe + ' : de nouveaux adversaires · ouvrez la carte (M) et l\'arsenal (U)');
 }
 $('lvlB').onclick = () => startLevel(LEVEL.n + 1);
+function announceUnlocks(n) { const w = Object.keys(UNLOCK).filter(k => UNLOCK[k] === n).map(k => (WP[k] || ITEMS[k] || ARM[k]).n); if (w.length) setTimeout(() => alertB('NOUVEL ARSENAL : ' + w.join(' · ').toUpperCase()), 3500); }
 
 // ---------- Carte stratégique ----------
 const smEl = document.createElement('div'); smEl.id = 'smap';
@@ -3132,6 +3269,8 @@ function drawGuide(t) {
   fx.fillStyle = '#6fd0ff'; fx.strokeStyle = 'rgba(0,0,0,.8)'; fx.lineWidth = 3; fx.beginPath(); if (onScreen) { fx.moveTo(0, 14); fx.lineTo(-11, -4); fx.lineTo(11, -4); } else { fx.moveTo(16, 0); fx.lineTo(-8, -11); fx.lineTo(-8, 11); } fx.closePath(); fx.stroke(); fx.fill(); fx.restore();
   fx.font = '800 12px system-ui'; fx.textAlign = 'center'; fx.strokeStyle = 'rgba(0,0,0,.85)'; fx.lineWidth = 3; const lab = tg.name + ' · ' + d + ' m', ly = onScreen ? py - 14 : py + (Math.sin(ang) > 0 ? -18 : 28); fx.strokeText(lab, px, ly); fx.fillStyle = '#bfe8ff'; fx.fillText(lab, px, ly);
 }
+
+$('bArs').onclick = toggleArsenal;
 
 // ---------- Boucle ----------
 let last = performance.now(), fAcc = 0, fCnt = 0, hudAcc = 0, mmAcc = 0, fpsv = 0, ambAcc = 0, simMs = 0;
