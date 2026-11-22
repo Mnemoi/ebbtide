@@ -634,7 +634,7 @@ function prog(vs, fs) {
   return p;
 }
 const COMMON = `
-uniform float uAmb, uNight, uFogK, uCamD, uTime; uniform vec3 uFog, uEye, uTint;
+uniform float uAmb, uNight, uFogK, uCamD, uTime; uniform vec3 uFog, uEye, uTint; uniform float uBiome;
 float h11(float n){ return fract(sin(n*12.9898)*43758.5453); }
 float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
 float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y); }
@@ -694,6 +694,11 @@ void main(){
   col=mix(col,vec3(.018),clamp(m.b*1.2,0.,1.)*.9);
   col*=uAmb*uTint;
   for(int i=0;i<16;i++){ vec4 L=uL[i]; if(L.w<=0.) continue; float d=length(p-L.xy); float a=L.w*smoothstep(L.z,0.,d); col+=vec3(1.,.84,.58)*a*(.12+.75*uNight)*(.7+.3*n2); }
+  { vec3 c0=col; float rd=step(min(abs(mod(p.x+25.,50.)-25.),abs(mod(p.y+25.,50.)-25.)),7.);
+    if(uBiome>.5&&uBiome<1.5){ vec3 sn=vec3(.86,.9,.96)*(.93+.1*n2); col=mix(sn,c0*1.8+.1,clamp(rd*.55*step(.45,vn(p*1.3))+step(.5,b0)*.9,0.,1.)); col=mix(col,vec3(.12,.1,.09),smoothstep(.55,.9,m.b)*.9); }
+    else if(uBiome>1.5&&uBiome<2.5){ float dn=vn(p*.04)+.5*vn(p*.13); vec3 sd=mix(vec3(.74,.57,.35),vec3(.9,.73,.47),dn)*(.92+.1*n2)*(.92+.1*n3); col=mix(sd,c0*1.4+vec3(.2,.15,.08),clamp(rd*.4+step(.5,b0)*.8,0.,1.)); col=mix(col,vec3(.1,.08,.06),smoothstep(.55,.9,m.b)*.9); }
+    else if(uBiome>2.5){ col=c0*vec3(.8,.92,1.1)*1.1; }
+    col=mix(col,c0,pl); }
   o=vec4(fogit(col,vW),1.);
 }`);
 
@@ -747,6 +752,9 @@ void main(){
       float on=step(.58-.25*uNight,h21(cc*1.7+floor(vId)*13.))*step(.05,uNight);
       col=tc*(.45+.9*l)*(.8+.28*smoothstep(0.,30.,vW.y)); em=mix(vec3(1.,.8,.45),vec3(.6,.85,1.),step(.82,h21(cc+3.)))*win*on*.95; col=mix(col,col*.55,win*on); }
   }
+  if(uBiome>.5&&uBiome<1.5){ if(vN.y>.5) col=mix(col,vec3(.9,.93,.98),.84); else col=mix(col,vec3(.9,.93,.98),.12); }
+  else if(uBiome>1.5&&uBiome<2.5){ col*=vec3(1.14,.98,.8); if(vN.y>.5) col=mix(col,vec3(.74,.68,.6),.4); }
+  else if(uBiome>2.5){ col*=vec3(.8,.9,1.12); }
   col=col*uAmb*uTint+em;
   o=vec4(fogit(col,vW),1.);
 }`);
@@ -834,7 +842,7 @@ void main(){
   o=vec4(fogit(c,vW),1.);
 }`);
 const U = (p, n) => gl.getUniformLocation(p, n);
-const COMMON_U = ['uAmb', 'uNight', 'uFogK', 'uCamD', 'uTint', 'uFog', 'uEye', 'uVP'];
+const COMMON_U = ['uBiome', 'uAmb', 'uNight', 'uFogK', 'uCamD', 'uTint', 'uFog', 'uEye', 'uVP'];
 function locs(p, extra) { const o = {}; for (const n of COMMON_U.concat(['uTime'], extra || [])) o[n] = U(p, n); return o; }
 const LG = locs(pGround, ['uCorpse', 'uMarks', 'uBlock', 'uL']), LB = locs(pBuild, ['uFacT', 'uFacOn']), LW = locs(pWall), LX = locs(pBox), LZ = locs(pZomb, ['uCorpse', 'uRight', 'uSize', 'uFac']);
 
@@ -1030,7 +1038,7 @@ function render(t) {
   const fogK = 1 / (opts.tod === 0 ? 1600 : 700);
   const common = (L, p) => {
     gl.useProgram(p); gl.uniformMatrix4fv(L.uVP, false, VP); gl.uniform1f(L.uAmb, tod.amb); gl.uniform1f(L.uNight, tod.night);
-    gl.uniform1f(L.uFogK, fogK); gl.uniform1f(L.uCamD, cam.dist); gl.uniform1f(L.uTime, t);
+    gl.uniform1f(L.uFogK, fogK); gl.uniform1f(L.uCamD, cam.dist); gl.uniform1f(L.uTime, t); gl.uniform1f(L.uBiome, LEVEL.n);
     gl.uniform3fv(L.uTint, tod.tint); gl.uniform3fv(L.uFog, tod.fog); gl.uniform3fv(L.uEye, eye);
   };
   // lumières au sol
@@ -1095,7 +1103,7 @@ function explosion(x, z, size) {
   }
   for (let i = 0; i < n; i++) {
     const a = r2() * 6.28, sp = 1 + r2() * 4;
-    addP('smoke', x, 1, z, Math.cos(a) * sp, 3 + r2() * 5, Math.sin(a) * sp, 2.2 + r2() * 2.5, (3 + r2() * 4) * (size / 8 + .5));
+    addP('smoke', x, 1, z, Math.cos(a) * sp * .6, 6 + r2() * 10, Math.sin(a) * sp * .6, 3.6 + r2() * 3.5, (4 + r2() * 5) * (size / 8 + .6));
   }
   for (let i = 0; i < n; i++) {
     const a = r2() * 6.28, sp = 8 + r2() * 20;
@@ -1104,7 +1112,7 @@ function explosion(x, z, size) {
   for (let i = 0; i < n * .8; i++) { const a = r2() * 6.28, sp = 6 + r2() * 14; addP('blood', x, 1, z, Math.cos(a) * sp, 6 + r2() * 12, Math.sin(a) * sp, .6 + r2() * .5, .35); }
   if (size >= 5) addP('blast', x, 2, z, 0, 1.5, 0, .55 + size * .02, size * .55);
   rings.push({ x, z, t: 0, life: .5, r: size * 1.3 });
-  paint(x, z, size * .75, 2, 200);
+  paint(x, z, size * 1.05, 2, 230);
   if (!ACC.calm) cam.shake = Math.min(3.5, cam.shake + size * .18);
   sfx.boom(size);
 }
@@ -2435,8 +2443,8 @@ Object.assign(EN, {
 const FOES = { humans: { pool: [['punk', .42], ['thug', .30], ['bruiser', .28]], chief: 'chief' }, cyborgs: { pool: [['cybg', .45], ['cybs', .25], ['cybh', .30]], chief: 'cybc' }, robots: { pool: [['drone', .35], ['sent', .25], ['mech', .40]], chief: 'robc' }, ia: { pool: [['ghost', .30], ['shld', .35], ['snpi', .35]], chief: 'iac' } };
 const MEGA = [
   { name: 'Mégapole 1 · Les Bas-Quartiers', fac: 'humans', tod: 1, foe: 'Criminels', blurb: 'Gangs humains : pistolets, mitraillettes, fusils à pompe. Ils se mettent à couvert, crient pour appeler du renfort et exécutent les otages si l\'alarme dure.' },
-  { name: 'Mégapole 2 · Néo-Port', fac: 'cyborgs', tod: 2, foe: 'Cyborgs', blurb: 'Hommes-machines blindés : ils avancent sans reculer, se régénèrent et encaissent les armes légères. Faibles face aux armes perforantes et aux impulsions EMP.' },
-  { name: 'Mégapole 3 · Cité des Machines', fac: 'robots', tod: 1, foe: 'Machines', blurb: 'Drones kamikazes, sentinelles fixes et mécas lourds. Ils détectent à 360°, ignorent le flash et voient à travers les fumigènes. L\'impulsion EMP les paralyse.' },
+  { name: 'Mégapole 2 · Néo-Port', fac: 'cyborgs', tod: 0, foe: 'Cyborgs', blurb: 'Hommes-machines blindés : ils avancent sans reculer, se régénèrent et encaissent les armes légères. Faibles face aux armes perforantes et aux impulsions EMP.' },
+  { name: 'Mégapole 3 · Cité des Machines', fac: 'robots', tod: 0, foe: 'Machines', blurb: 'Drones kamikazes, sentinelles fixes et mécas lourds. Ils détectent à 360°, ignorent le flash et voient à travers les fumigènes. L\'impulsion EMP les paralyse.' },
   { name: 'Mégapole 4 · Le Noyau', fac: 'ia', tod: 2, foe: 'Unités IA', blurb: 'L\'IA coordonne : camouflage optique, boucliers frontaux, tireurs de précision et un boss qui invoque des drones. Seules les armes de pointe percent leurs défenses.' },
 ];
 const UNLOCK = { ap: 1, emp: 1, iem: 1, plasma: 2, power: 2, rail: 3 };
@@ -3455,7 +3463,7 @@ function propsBuild() {
   const out = [], add = (x, z, t) => out.push(x, z, t, R() < .5 ? 1 : 0);
   const farFob = (x, z) => Math.hypot(x - FOBX, z - FOBZ) > 62;
   const grass = LEVEL.n === 0 ? 'tree' : 'dead';
-  for (let i = 0; i < 800; i++) { const x = (R() - .5) * 980, z = (R() - .5) * 980, mx = ((x % 50) + 50) % 50, mz = ((z % 50) + 50) % 50; if (Math.min(mx, 50 - mx) < 9 || Math.min(mz, 50 - mz) < 9) continue; if (!farFob(x, z) || !free(x, z)) continue; const q = R(); add(x, z, q < .35 ? 0 : q < .6 ? 1 : q < .78 ? 2 : 3); }
+  for (let i = 0; i < 800; i++) { const x = (R() - .5) * 980, z = (R() - .5) * 980, mx = ((x % 50) + 50) % 50, mz = ((z % 50) + 50) % 50; if (Math.min(mx, 50 - mx) < 9 || Math.min(mz, 50 - mz) < 9) continue; if (!farFob(x, z) || !free(x, z)) continue; const q = R(), bn = LEVEL.n; add(x, z, bn === 1 ? (q < .5 ? 0 : q < .78 ? 2 : 3) : bn === 2 ? (q < .6 ? 1 : q < .85 ? 3 : 2) : bn === 3 ? (q < .5 ? 2 : q < .65 ? 3 : 5) : (q < .35 ? 0 : q < .6 ? 1 : q < .78 ? 2 : 3)); }
   for (let i = 0; i < 160; i++) { const road = R() < .5, k = ((R() * 19) | 0) - 9, l = (R() - .5) * 960, off = (R() < .5 ? -1 : 1) * (5 + R() * 2.5), x = road ? k * 50 + off : l, z = road ? l : k * 50 + off; if (!farFob(x, z) || !free(x, z)) continue; const q = R(); add(x, z, q < .55 ? 4 : q < .75 ? 5 : q < .9 ? 6 : 7); }
   for (let i = 0; i < 160; i++) { const road = R() < .5, k = ((R() * 19) | 0) - 9, l = (R() - .5) * 960, x = road ? k * 50 + 9.5 : l, z = road ? l : k * 50 + 9.5; if (!farFob(x, z) || !free(x, z)) continue; add(x, z, 7); }
   return new Float32Array(out);
@@ -3483,6 +3491,7 @@ void main(){
   vec2 cell=vec2(mod(vT,4.),floor(vT/4.)); vec2 au=(cell+clamp(vUv,.003,.997))/vec2(4.,2.);
   vec4 tc=texture(uAtlas,au); if(tc.a<.45) discard;
   vec3 c=tc.rgb*(vec3(.6)+.8*clamp(uAmb*uTint,0.,1.));
+  if(uBiome>.5&&uBiome<1.5) c=mix(c,vec3(.92,.95,1.),.36*step(vT,3.5)); else if(uBiome>1.5&&uBiome<2.5) c*=vec3(1.1,1.,.88);
   o=vec4(fogit(c,vW),1.);
 }`);
   const L = locs(p, ['uRight', 'uSz', 'uAtlas', 'uShadow']); L.uSz = gl.getUniformLocation(p, 'uSz[0]');
