@@ -464,6 +464,7 @@ function addCorpse(x, z) {
   S.corpseDirty = true;
 }
 function killAgent(i) {
+  if (!DCAUSE) { const ccx = ((pos[2 * i] + HALF) / CELL) | 0, ccz = ((pos[2 * i + 1] + HALF) / CELL) | 0; if (ccx > 0 && ccz > 0 && ccx < G - 1 && ccz < G - 1 && (blocked[ccz * G + ccx + 1] || blocked[ccz * G + ccx - 1] || blocked[(ccz + 1) * G + ccx] || blocked[(ccz - 1) * G + ccx]) && r2() < .5) return; }
   if (!DCAUSE && --ehp[i] > 0) return;
   const x = pos[2 * i], z = pos[2 * i + 1];
   addCorpse(x, z);
@@ -536,7 +537,8 @@ function step(dt, n) {
     let vx, vz;
     if (ag > 0) {
       const ux = uAX[ag - 1] - x, uz = uAZ[ag - 1] - z, ul = Math.sqrt(ux * ux + uz * uz) || 1;
-      if (ul < 20) { vx = 0; vz = 0; } else { vx = ux / ul * s * 1.05; vz = uz / ul * s * 1.05; }
+      const hs = (spd[i] * 977.13) % 1, sd = 16 + hs * 17, lat = (((spd[i] * 311.7) % 1) - .5) * 26;
+      if (ul < sd) { vx = 0; vz = 0; } else if (ul < 55 && ((S.time * .55 + hs * 5) % 3) > 1.9) { vx = 0; vz = 0; } else { const ax = ux - uz / ul * lat * (ul > sd + 10 ? 1 : 0), az = uz + ux / ul * lat * (ul > sd + 10 ? 1 : 0), al = Math.sqrt(ax * ax + az * az) || 1; vx = ax / al * s * 1.05; vz = az / al * s * 1.05; }
     } else { vx = dirx[c] * s; vz = dirz[c] * s; }
     let dcx = ((x + HALF) * invD) | 0, dcz = ((z + HALF) * invD) | 0;
     if (dcx < 1) dcx = 1; else if (dcx > DG - 2) dcx = DG - 2;
@@ -3597,7 +3599,7 @@ const gridName = (x, z) => 'ABCDEFGHIJ'[Math.max(0, Math.min(9, Math.floor((x + 
 function loadLevel() {
   LEVEL.seed = LEVEL.n; makeCity(); bData = new Float32Array(buildings); nBuildings = bData.length / 5;
   gl.bindBuffer(gl.ARRAY_BUFFER, bBuf); gl.bufferData(gl.ARRAY_BUFFER, bData, gl.STATIC_DRAW);
-  resetWalls(); blockDirty = true; makeRuins(); pickRaids(); redrawMiniBg(); opts.tod = LEVELS[LEVEL.n].tod; if ($('tFoe')) $('tFoe').textContent = LEVELS[LEVEL.n].foe; WAY = null; smapSel = null; buildField(FC, FC); refreshTop();
+  resetWalls(); blockDirty = true; makeRuins(); pickRaids(); redrawMiniBg(); opts.tod = LEVELS[LEVEL.n].tod; if ($('tFoe')) $('tFoe').textContent = 'Ennemis'; WAY = null; smapSel = null; buildField(FC, FC); refreshTop();
 }
 function unlockNext(why) {
   const r = RAIDS.find(x => x.locked); if (!r) return; r.locked = false;
