@@ -1223,7 +1223,7 @@ function drawHudWorld(t) {
   drawRaidMarks(t); drawGuide(t);
   // unités : anneaux, noms, vie
   for (const u of units) {
-    const pr = proj(u.x, 0, u.z); if (!pr) continue; const ppm = ppmOf(pr[2]), rr = u.rad * ppm * 1.15;
+    const pr = proj(u.x, u.roofH || 0, u.z); if (!pr) continue; const ppm = ppmOf(pr[2]), rr = u.rad * ppm * 1.15;
     if (u.sel) {
       fx.strokeStyle = '#6fcf6a'; fx.lineWidth = 2; fx.beginPath(); fx.ellipse(pr[0], pr[1], rr, rr * Math.sin(cam.pitch), 0, 0, 6.283); fx.stroke();
       if (u.order) { const d = proj(u.order.x, 0, u.order.z); if (d) { fx.strokeStyle = 'rgba(111,207,106,.55)'; fx.lineWidth = 1; fx.setLineDash([5, 5]); fx.beginPath(); fx.moveTo(pr[0], pr[1]); fx.lineTo(d[0], d[1]); fx.stroke(); fx.setLineDash([]); fx.beginPath(); fx.ellipse(d[0], d[1], 7, 3.5, 0, 0, 6.283); fx.stroke(); } }
@@ -3285,8 +3285,8 @@ function drawUnitSprites(t) {
       uPush(SPRI.hull, u.x, 1, u.z, u.yaw, 4.4, 7.3, .5);
       const ts = Math.sin(u.tyaw), tc = Math.cos(u.tyaw), rc = Math.max(0, u.recoil || 0);
       uPush(SPRI.turret, u.x - ts * .3 - ts * rc * .3, 2.3, u.z - tc * .3 - tc * rc * .3, u.tyaw, 3.0, 6.9, .68, -1);
-    } else if (u.type === 'JD') uPush(SPRI.jug, u.x, .6, u.z, u.aim, 3.3, 3.3, .5, 0, u.moving, t * 11);
-    else { const mm = USPR_MAN[u.type] || USPR_MAN.SQ, im = SPRI[mm[0]]; for (let q = 0; q < u.men.length; q++) { const m = u.men[q]; uPush(im, m.x, .5, m.z, u.aim, mm[1], mm[1], .5, 0, m.mv, t * 11 + q * 1.7); } }
+    } else if (u.type === 'JD') uPush(SPRI.jug, u.x, .6 + (u.roofH || 0), u.z, u.aim, 3.3, 3.3, .5, 0, u.moving, t * 11);
+    else { const mm = USPR_MAN[u.type] || USPR_MAN.SQ, im = SPRI[mm[0]]; for (let q = 0; q < u.men.length; q++) { const m = u.men[q]; uPush(im, m.x, .5 + (u.roofH || 0), m.z, u.aim, mm[1], mm[1], .5, 0, m.mv, t * 11 + q * 1.7); } }
   }
   drawEvs(t);
   usprList.sort((a, b) => b.d - a.d);
@@ -3299,6 +3299,30 @@ function drawUnitSprites(t) {
   for (const u of units) {
     if (u.flash > 0 && u.type === 'TK') { const ts = Math.sin(u.tyaw), tc = Math.cos(u.tyaw), p = proj(u.x + ts * 7.2, 2.6, u.z + tc * 7.2); if (p) { const g = 5 * ppmOf(p[2]); fx.globalCompositeOperation = 'lighter'; fx.drawImage(sprGlow, p[0] - g, p[1] - g, g * 2, g * 2); fx.globalCompositeOperation = 'source-over'; } }
     else if (u.flash > 0 || (u.men && u.men.some(m => m.flash > 0))) for (const m of u.men || []) if (m.flash > 0) { const as = Math.sin(u.aim), ac = Math.cos(u.aim), p = proj(m.x + as * 1.3, 1.1, m.z + ac * 1.3); if (p) { const g = 1.6 * ppmOf(p[2]); fx.globalCompositeOperation = 'lighter'; fx.drawImage(sprGlow, p[0] - g, p[1] - g, g * 2, g * 2); fx.globalCompositeOperation = 'source-over'; } }
+  }
+}
+
+// ---------- Soldats sur les toits ----------
+function roofBuilding(x, z) { let bi = -1, bd = 90; for (let i = 0; i < nBuildings; i++) { const bx = bData[i * 5], bz = bData[i * 5 + 1], w = bData[i * 5 + 2], d = bData[i * 5 + 3], h = bData[i * 5 + 4]; if (h < 8 || w < 8 || d < 8) continue; const dx = Math.max(0, Math.abs(x - bx) - w / 2), dz = Math.max(0, Math.abs(z - bz) - d / 2), dist = Math.hypot(dx, dz); if (dist < bd) { bd = dist; bi = i; } } return bi; }
+function roofOrder(list) {
+  let n = 0; for (const u of list) { if (!(u.type === 'SQ' || u.type === 'CQ' || u.type === 'LF' || u.type === 'JD')) continue; const bi = roofBuilding(u.x, u.z); if (bi < 0) continue; u.roofB = bi; u.onRoof = false; n++; }
+  if (n) { banner2('SUR LES TOITS'); sfx.ui(); } else banner2('AUCUN TOIT À PORTÉE');
+}
+function roofDown(list) { for (const u of list) if (u.onRoof || u.roofB != null) { u.roofB = null; if (u.onRoof) { u.onRoof = false; u.roofH = 0; const bi = u.rbi, bx = bData[bi * 5], bz = bData[bi * 5 + 1], w = bData[bi * 5 + 2], d = bData[bi * 5 + 3]; u.x = bx; u.z = bz + d / 2 + 4; } } }
+function updateRoof(dt) {
+  for (const u of units) {
+    if (u.roofB == null && !u.onRoof) continue; const bi = u.onRoof ? u.rbi : u.roofB; if (bi == null || bi >= nBuildings) { u.roofB = null; u.onRoof = false; u.roofH = 0; continue; }
+    const bx = bData[bi * 5], bz = bData[bi * 5 + 1], w = bData[bi * 5 + 2], d = bData[bi * 5 + 3], h = bData[bi * 5 + 4];
+    if (u.onRoof) {
+      if (u.order) { u.onRoof = false; u.roofH = 0; u.roofB = null; const dx = u.order.x - bx, dz = u.order.z - bz, l = Math.hypot(dx, dz) || 1, t = Math.min((w / 2 + 4) / (Math.abs(dx / l) || 1e-3), (d / 2 + 4) / (Math.abs(dz / l) || 1e-3)); u.x = bx + dx / l * t; u.z = bz + dz / l * t; continue; }
+      u.x = bx; u.z = bz; u.roofH = h; u.cool = Math.min(u.cool, .7);
+      u.men.forEach((m, i) => { const k = u.men.length, cx = (i % 4 - 1.5) / 2 * Math.max(3, w * .55 / 2), cz = (((i / 4) | 0) - .5) * Math.max(3, d * .35 / 2); m.x = bx + cx; m.z = bz + cz; });
+      continue;
+    }
+    if (u.order && u.order.rf !== bi) { u.roofB = null; continue; }
+    const dx = u.x - bx, dz = u.z - bz, l = Math.hypot(dx, dz) || 1, t = Math.min((w / 2 + 3) / (Math.abs(dx / l) || 1e-3), (d / 2 + 3) / (Math.abs(dz / l) || 1e-3)), ex = bx + dx / l * t, ez = bz + dz / l * t;
+    if (Math.hypot(u.x - ex, u.z - ez) < 5) { u.onRoof = true; u.rbi = bi; u.roofB = null; u.order = null; u.hold = true; u.follow = false; u.roofH = h; }
+    else { if (!u.order || u.order.rf !== bi) u.order = { x: ex, z: ez, fld: buildUnitField(ex, ez), rf: bi }; u.follow = false; u.hold = false; }
   }
 }
 // ---------- Horde en sprites ----------
@@ -3544,11 +3568,12 @@ function propsDraw(t, common) {
     if (!cur) { dc.style.display = 'none'; return; }
     let d = `<h4>CONTRÔLE DIRECT<small>${sel.length > 1 ? sel.length + ' unités' : cur.name}</small></h4>`;
     if (cur.type !== 'JD') d += `<button data-a="stance">${nm.stance[stOf(cur)] || ''}</button>`;
+    if (cur.type === 'SQ' || cur.type === 'CQ' || cur.type === 'LF' || cur.type === 'JD') d += cur.onRoof ? '<button data-a="down">DESCENDRE DU TOIT<em>T</em></button>' : '<button data-a="roof">MONTER SUR LE TOIT<em>T</em></button>';
     for (const k in (cur.inv || {})) { const n = cur.inv[k], T = ITN[k]; if (!T) continue; d += `<button data-k="${k}"${n > 0 ? '' : ' class="dis"'}>${T.n.toUpperCase()}<b>${n}</b><em>${T.k}</em></button>`; }
     dc.style.display = 'block'; if (dc.dataset.h !== d) { dc.innerHTML = d; dc.dataset.h = d; }
   }
   rail.addEventListener('click', e => { const el = e.target.closest('.rl'); if (!el) return; const u = units.find(x => String(x.id) === el.dataset.id); if (u) { selectSet([u], e.shiftKey); camFollow = false; cam.tx = u.x; cam.tz = u.z; } });
-  dc.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const ss = units.filter(x => x.sel); if (b.dataset.a === 'stance') cycleStance(ss); else if (b.dataset.k && !b.classList.contains('dis')) armItem(b.dataset.k); });
+  dc.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const ss = units.filter(x => x.sel); if (b.dataset.a === 'stance') cycleStance(ss); else if (b.dataset.a === 'roof') roofOrder(ss); else if (b.dataset.a === 'down') roofDown(ss); else if (b.dataset.k && !b.classList.contains('dis')) armItem(b.dataset.k); });
   setInterval(upd, 250);
 })();
 // ---------- Campagne : niveaux, objectifs verrouillés ----------
@@ -3695,7 +3720,7 @@ function frame(now) {
     cam.tx = Math.max(-HALF, Math.min(HALF, cam.tx)); cam.tz = Math.max(-HALF, Math.min(HALF, cam.tz));
     if (!opts.paused && !G_.over) {
       const dt = Math.min(dtReal, .05) * opts.speed, t0 = performance.now();
-      updateWaves(dt); updateUnits(dt, t); updateEvs(dt, t); step(dt, N); towersFire(dt); updateGame(dt, dtReal); frameNo++;
+      updateWaves(dt); updateUnits(dt, t); updateRoof(dt); updateEvs(dt, t); step(dt, N); towersFire(dt); updateGame(dt, dtReal); frameNo++;
       simMs = performance.now() - t0; updateFx(dtReal * opts.speed);
     } else if (!opts.paused) updateFx(dtReal);
     if (bnT > 0) { bnT -= dtReal; if (bnT <= 0) $('banner').classList.remove('on'); }
