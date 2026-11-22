@@ -166,6 +166,17 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
 .bft2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 .bfe{display:flex;gap:10px;background:#10161f;border:1px solid #2a3647;padding:8px;font-size:13px;color:#cfcac0;align-items:center}.bfe small{color:#8fa0b3}
 .touch .sqp{display:none}.touch .sqc{width:132px}
+#smap{display:none;position:fixed;inset:0;z-index:15;background:#08121f}#smapC{position:absolute;inset:0;width:100%;height:100%}
+#smapTop{position:absolute;left:0;right:0;top:0;height:40px;background:rgba(10,18,30,.92);border-bottom:2px solid var(--o);display:flex;align-items:center;gap:14px;padding:0 12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+#smapTop b{color:var(--o)}#smapInfo{flex:1;color:#9ad0ff;font-size:11px;letter-spacing:.04em;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#smapTop button{background:#242933;border:1px solid var(--ln);color:var(--tx);padding:6px 12px;font:inherit;font-size:11px;cursor:pointer}
+#smapPanel{position:absolute;left:10px;bottom:10px;width:min(420px,calc(100vw - 20px));background:rgba(10,18,30,.94);border:1px solid #2d4a68;border-top:3px solid var(--o);padding:10px 14px;font-size:13px;color:#cfd6e0}
+#smapPanel h3{margin:0 0 6px;color:var(--o);letter-spacing:.1em;text-transform:uppercase;font-size:14px}.smi{line-height:1.6}.smb{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.smb button{background:#1d2a3a;border:1px solid #3a5878;color:var(--tx);padding:8px 10px;font:700 11px system-ui,sans-serif;text-transform:uppercase;cursor:pointer}.smb button:first-child{background:var(--o);color:#14161B;border-color:var(--o)}
+#smapHint{position:absolute;right:10px;bottom:10px;font-size:11px;color:#8fb4d6;background:rgba(10,18,30,.8);padding:4px 8px;max-width:300px}
+.touch #smapHint{display:none}
+#lvl{position:fixed;z-index:20;inset:0;background:rgba(8,9,12,.92);display:none;align-items:center;justify-content:center;text-align:center}
+#lvl .box{max-width:560px;padding:28px 34px;border:1px solid var(--ln);border-top:3px solid var(--o);background:rgba(15,17,22,.97)}#lvl h1{margin:0 0 10px;font-size:30px;letter-spacing:.18em;color:var(--o)}#lvl p{font-size:15px;line-height:1.7;color:#cfcac0}
 /* raid sur téléphone */
 .touch #rdSq{left:4px;bottom:4px;gap:4px;align-items:flex-end;max-width:calc(100vw - 170px);overflow-x:auto}
 .touch .sqc{width:auto;min-width:64px;padding:3px 5px;flex:none}
@@ -204,6 +215,7 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
   <button class="ib" id="bSpd">x1</button>
   <button class="ib" id="bPause">Pause</button>
   <button class="ib" id="bTod">Crépuscule</button>
+  <button class="ib" id="bMap">Carte (M)</button>
   <button class="ib" id="bHelp">Aide (?)</button>
   <button class="ib" id="bAcc" aria-label="Accessibilité">Accessibilité</button>
   <button class="ib" id="bSnd">Son</button>
@@ -230,7 +242,8 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
 <tr><td>6 7 8 9 0</td><td>appeler des renforts</td></tr>
 <tr><td>Bord de l'écran · C · molette</td><td>faire défiler la vue · recentrer sur le juge · zoom ; Z Q S D déplace le juge</td></tr>
 <tr><td>Entrée · X</td><td>entrer dans un bâtiment marqué (raid)</td></tr>
-<tr><td>Échap · P · M · V · N</td><td>annuler/pause · pause · son · vitesse · jour/nuit</td></tr>
+<tr><td>M</td><td>carte stratégique : zoomer, repérer les positions à capturer, envoyer le juge ou l'équipe, placer un repère</td></tr>
+<tr><td>Échap · P · O · V · N</td><td>annuler/pause · pause · son · vitesse · jour/nuit</td></tr>
 <tr><td>Tactile</td><td>toucher une unité = la choisir · toucher le sol = la déplacer · pouce gauche = bouger le juge · pincer = zoom · deux doigts = faire défiler la vue · bouton Centrer</td></tr>
 </table><button class="big" id="ohelpOk">FERMER</button></div></div>
 <div id="alertb"></div>
@@ -263,12 +276,13 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
     <tr><td>Espace</td><td>Verdict : onde de choc autour du juge</td></tr>
     <tr><td>6 7 8 9 0 · boutons</td><td>appeler des alliés : ils vous suivent et se battent seuls</td></tr>
     <tr><td>Entrée · bouton orange</td><td>entrer dans un bâtiment marqué (raid) : Espace = flash, le juge tire seul, restez près d'un otage pour le libérer</td></tr>
-    <tr><td>Échap ou P · M</td><td>pause · couper le son</td></tr>
+    <tr><td>M · Échap ou P · O</td><td>carte stratégique (zoom, repères, positions à capturer) · pause · couper le son</td></tr>
     <tr><td>Manette</td><td>stick gauche, A Verdict, X mortier, Y coéquipiers, B char, LB bulldozer, RB lance-flammes, Menu pause</td></tr>
     <tr><td>Écran tactile</td><td>pouce gauche : bouger · toucher : mortier · boutons du bas</td></tr>
   </table>
   <button class="big" id="go">COMMENCER</button><br><button class="ib" id="bAcc2" style="margin-top:10px;background:#242933;border:1px solid var(--ln);color:var(--tx);padding:7px 14px;font:inherit;cursor:pointer">Accessibilité (taille, difficulté, contraste)</button>
 </div></div>
+<div id="lvl"><div class="box"><h1 id="lvlT"></h1><p id="lvlP"></p><button class="big" id="lvlB">NIVEAU SUIVANT</button></div></div>
 <div id="end"><div class="box"><h1 id="endT"></h1><p id="endP"></p><button class="big" id="again">REJOUER</button></div></div>
 <script>
 'use strict';
@@ -293,6 +307,7 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
 let seed = 12345;
 const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+const LEVEL = { n: 0, seed: 0, waves: 2 };
 const r2 = () => Math.random();
 
 const P = {
@@ -302,7 +317,7 @@ const P = {
   TOWER_RANGE: 78, TOWER_RATE: 0.05, TOWER_KILLS: 2, TOWER_SAMPLES: 14,
 };
 const ACC = Object.assign({ ui: 1, diff: 1, calm: false, hc: false, sfx: 1, mus: .8 }, (() => { try { return JSON.parse(localStorage.getItem('ebbtideAcc') || '{}'); } catch (e) { return {}; } })());
-const DMUL = [.5, 1, 1.35, 1.8], WMUL = [.5, 1, 1.4, 1.9];
+const DMUL = [.4, .85, 1.2, 1.6], WMUL = [.45, .9, 1.3, 1.8];
 const opts = { lod: true, tod: 1, paused: false, speed: 1, snd: true };
 const TOD = [
   { name: 'Jour', amb: 1.08, night: 0, tint: [1.0, .96, .88], clear: [.50, .54, .56], fog: [.50, .54, .56] },
@@ -313,8 +328,9 @@ const TOD = [
 // ---------- Ville ----------
 const blocked = new Uint8Array(G * G);
 const fieldBlock = new Uint8Array(G * G);
-const buildings = [];
-(function makeCity() {
+let buildings = [];
+function makeCity() {
+  seed = 12345 + LEVEL.seed * 7919; buildings = []; blocked.fill(0); fieldBlock.fill(0);
   for (let i = 0; i < 450; i++) {
     const w = 3 + (rnd() * 6 | 0), d = 3 + (rnd() * 6 | 0);
     const cx = rnd() * (G - w) | 0, cz = rnd() * (G - d) | 0;
@@ -322,8 +338,9 @@ const buildings = [];
     for (let z = cz; z < cz + d; z++) for (let x = cx; x < cx + w; x++) { blocked[z * G + x] = 1; fieldBlock[z * G + x] = 1; }
     buildings.push((cx + w / 2) * CELL - HALF, (cz + d / 2) * CELL - HALF, w * CELL, d * CELL, (7 + Math.pow(rnd(), 2.2) * 42) * (rnd() < .5 ? .55 : 1));
   }
-})();
-const bData = new Float32Array(buildings), nBuildings = bData.length / 5;
+}
+makeCity();
+let bData = new Float32Array(buildings), nBuildings = bData.length / 5;
 
 // ---------- Le fort ----------
 const FC = G / 2 | 0, FH = 8;
@@ -884,9 +901,9 @@ const staticProps = [];
   // barrières à la porte
   sp(FOBX - 8, 0, FOBZ - 30, 4.2, 1.1, .8, .3, .85, .35, .1, 0); sp(FOBX + 8, 0, FOBZ - 30, 4.2, 1.1, .8, -.3, .85, .35, .1, 0);
 })();
-const burners = [];
-(function makeRuins() {
-  let sd = 777; const R = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
+const burners = []; const FORT_PROPS = staticProps.length;
+function makeRuins() {
+  staticProps.length = FORT_PROPS; burners.length = 0; let sd = 777 + LEVEL.seed * 131; const R = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
   const freeAt = (x, z, r) => { for (let dx = -r; dx <= r; dx += 3) for (let dz = -r; dz <= r; dz += 3) { const cx = ((x + dx + HALF) / CELL) | 0, cz = ((z + dz + HALF) / CELL) | 0; if (cx < 0 || cz < 0 || cx >= G || cz >= G || blocked[cz * G + cx]) return false; } return true; };
   const sp = (...a) => staticProps.push(a); let n = 0, tries = 0;
   while (n < 170 && tries++ < 5000) {
@@ -905,7 +922,8 @@ const burners = [];
     } else { sp(x, .6, z, 1.1, 1.2, 1.1, 0, .22, .23, .25, 0); sp(x, 1.35, z, .9, .4, .9, 0, 1, .5, .1, 1.8); burners.push({ x, z, y: 1.7, big: 0 }); }
     n++;
   }
-})();
+}
+makeRuins();
 function buildBoxes(t) {
   boxN = 0;
   for (const s of staticProps) B(...s);
@@ -1146,7 +1164,7 @@ function drawHudWorld(t) {
       fx.fillStyle = hp > .4 ? '#e6b030' : '#e5483b'; fx.fillRect(pr[0] - w / 2, pr[1], w * hp, 3); if (++shown > 70) break;
     }
   }
-  drawRaidMarks(t);
+  drawRaidMarks(t); drawGuide(t);
   // unités : anneaux, noms, vie
   for (const u of units) {
     const pr = proj(u.x, 0, u.z); if (!pr) continue; const ppm = ppmOf(pr[2]), rr = u.rad * ppm * 1.15;
@@ -1622,7 +1640,7 @@ const G_ = { over: null, started: false };
 const WV = { i: 0, phase: 'prep', t: 40, left: 0, rate: 0, acc: 0, sides: [0, 1], count: 0 };
 function startWave() {
   const s0 = (rnd() * 4) | 0, s1 = (s0 + 1 + ((rnd() * 3) | 0)) % 4; WV.sides = [s0, s1];
-  WV.left = Math.round(WAVES[WV.i] * WMUL[ACC.diff]); WV.rate = WV.left / 7; WV.acc = 0; WV.phase = 'spawn'; WV.t = 100;
+  WV.left = Math.round(WAVES[LEVEL.n * 2 + WV.i] * WMUL[ACC.diff]); WV.rate = WV.left / 7; WV.acc = 0; WV.phase = 'spawn'; WV.t = 100;
   bannerBig('VAGUE ' + (WV.i + 1), fmt(WV.left) + ' criminels en approche'); sfx.horn(); res.sp += 60;
 }
 function updateWaves(dt) {
@@ -1634,7 +1652,8 @@ function updateWaves(dt) {
   } else if (WV.phase === 'fight') {
     WV.t -= dt;
     if (N < 300 || WV.t <= 0) {
-      WV.i++; if (WV.i >= WAVES.length) { if (N < 50) endGame('win'); } else { WV.phase = 'prep'; WV.t = 28; bannerBig('VAGUE ' + WV.i + ' REPOUSSÉE', 'Prochaine vague dans 28 s · renforcez le fort'); res.sp += 80; }
+      WV.i++; res.sp += 80; unlockNext('vague');
+      if (WV.i >= LEVEL.waves) { levelComplete(); } else { WV.phase = 'prep'; WV.t = 28; bannerBig('VAGUE ' + WV.i + ' REPOUSSÉE', 'Nouvelle position débloquée (carte : M) · prochaine vague dans 28 s'); }
     }
   }
 }
@@ -1747,10 +1766,11 @@ addEventListener('keydown', e => {
   if ($('start').style.display !== 'none') return;
   const dg = /^(Digit|Numpad)(\d)$/.exec(e.code); let k = dg ? dg[2] : e.key.toLowerCase(); keys[k] = true;
   if (briefRaid) { rdBriefKey(k, e); return; }
+  if (smapOpen) { if (k === 'escape' || k === 'm') { e.preventDefault(); toggleMap(); } return; }
   if (RD.active) { if (!(e.target && /^(SELECT|INPUT)$/.test(e.target.tagName))) rdKey(k, e); return; }
   if (e.target && /^(SELECT|INPUT)$/.test(e.target.tagName)) return;
   if (e.target && e.target.tagName === 'BUTTON' && (k === ' ' || k === 'enter')) return;
-  if (k === ' ') { e.preventDefault(); doJustice(); } else if (k === 'p') { opts.paused = !opts.paused; refreshTop(); } else if (k === 'm') toggleSnd();
+  if (k === ' ') { e.preventDefault(); doJustice(); } else if (k === 'p') { opts.paused = !opts.paused; refreshTop(); } else if (k === 'm') toggleMap();
   else if (k === 'escape') { if (armed || armedItem) { armed = null; armedItem = null; refreshHint(); selDirty = true; } else { opts.paused = !opts.paused; refreshTop(); } }
   else if (k === '1') arm('mortar'); else if (k === '2') arm('strike'); else if (k === '3') arm('decoy'); else if (k === '4') arm('repair');
   else if (k === '5') arm('charges'); else if (k === '6') produce('CQ'); else if (k === '0') produce('LF'); else if (k === 'j') arm('justice'); else if (k === 'g') { const j = units.find(u => u.type === 'JD'); if (j) { selectSet([j], false); cam.tx = j.x; cam.tz = j.z; camFollow = true; } }
@@ -1819,11 +1839,12 @@ $('cards').addEventListener('click', e => {
 });
 // mini-carte
 const mm = $('mm'), mc = mm.getContext('2d'), MMS = 196;
-const mmBg = document.createElement('canvas'); mmBg.width = mmBg.height = MMS; (function () {
+const mmBg = document.createElement('canvas'); mmBg.width = mmBg.height = MMS; function redrawMiniBg() {
   const g = mmBg.getContext('2d'); g.fillStyle = '#12151a'; g.fillRect(0, 0, MMS, MMS); const k = MMS / MAPW; g.fillStyle = '#2b313b';
   for (let i = 0; i < nBuildings; i++) { const x = bData[i * 5], z = bData[i * 5 + 1], w = bData[i * 5 + 2], d = bData[i * 5 + 3]; g.fillRect((x - w / 2 + HALF) * k, (z - d / 2 + HALF) * k, Math.max(1, w * k), Math.max(1, d * k)); }
   g.strokeStyle = '#E8833A'; g.lineWidth = 1.5; g.strokeRect((FOBX - 32 + HALF) * k, (FOBZ - 32 + HALF) * k, 66 * k, 66 * k);
-})();
+}
+redrawMiniBg();
 const mmHeat = document.createElement('canvas'); mmHeat.width = mmHeat.height = 98; const mhx = mmHeat.getContext('2d'); const mhImg = mhx.createImageData(98, 98);
 function drawMini(t) {
   mc.globalAlpha = 1; mc.drawImage(mmBg, 0, 0);
@@ -1835,6 +1856,8 @@ function drawMini(t) {
   mhx.putImageData(mhImg, 0, 0); mc.imageSmoothingEnabled = true; mc.drawImage(mmHeat, 0, 0, MMS, MMS);
   // zombies lointains (LOD) : points
   for (const u of units) { mc.fillStyle = u.sel ? '#6fcf6a' : '#4fa8e0'; const x = (u.x + HALF) * k, y = (u.z + HALF) * k; mc.fillRect(x - 2, y - 2, 4, 4); }
+  for (const r of RAIDS) { mc.fillStyle = r.done ? '#6fcf6a' : r.locked ? '#6b7280' : '#E8833A'; mc.beginPath(); mc.arc((r.doorX + HALF) * k, (r.doorZ + HALF) * k, 3.5, 0, 6.28); mc.fill(); mc.strokeStyle = '#000'; mc.lineWidth = 1; mc.stroke(); }
+  if (WAY) { mc.strokeStyle = '#6fd0ff'; mc.lineWidth = 2; mc.beginPath(); mc.arc((WAY.x + HALF) * k, (WAY.z + HALF) * k, 5, 0, 6.28); mc.stroke(); }
   for (const d of decoys) { mc.fillStyle = '#ff7040'; mc.beginPath(); mc.arc((d.x + HALF) * k, (d.z + HALF) * k, 3, 0, 6.28); mc.fill(); }
   if (WV.phase === 'spawn' || WV.phase === 'fight') { mc.fillStyle = 'rgba(229,72,59,.9)'; for (const s of WV.sides) { const a = s * Math.PI / 2, x = (Math.cos(a) * 330 + HALF) * k, y = (Math.sin(a) * 330 + HALF) * k; mc.beginPath(); mc.arc(x, y, 4 + 1.5 * Math.sin(t * 6), 0, 6.28); mc.fill(); } }
   // champ de la caméra
@@ -1851,6 +1874,7 @@ addEventListener('mouseup', () => { mmDrag = false; });
 
 // ---------- Partie ----------
 function resetGame() {
+  LEVEL.n = 0; loadLevel(); $('lvl').style.display = 'none';
   resetWalls(); corpse.fill(0); densR.fill(0); densW.fill(0); marks.fill(0); mkMin = 0; mkMax = MK - 1; mkForce = true; S.corpseDirty = true;
   S.kills = 0; S.breaches = 0; S.maxPile = 0; S.time = 0; N = 0; seed = 4242;
   units.length = 0; decoys.length = 0; timers.length = 0; parts.length = 0; tracers.length = 0; rings.length = 0; cnt = { DZ: 1, TK: 2, SQ: 82, CQ: 1, LF: 1, JD: 1 };
@@ -1877,7 +1901,7 @@ function updateGame(dt, dtReal) {
 }
 let killsPrev = 0;
 function refreshHud(fpsv) {
-  $('tW').textContent = Math.min(WV.i + (WV.phase === 'prep' ? 0 : 1), WAVES.length) + '/' + WAVES.length;
+  $('tW').textContent = 'N' + (LEVEL.n + 1) + ' · ' + Math.min(WV.i + (WV.phase === 'prep' ? 0 : 1), LEVEL.waves) + '/' + LEVEL.waves;
   $('tZ').textContent = fmt(N + (WV.phase === 'spawn' ? WV.left : 0)); $('tK').textContent = fmt(S.kills); $('tS').textContent = fmt(res.sp);
   const tt = Math.floor(S.time); $('tT').textContent = String(tt / 60 | 0).padStart(2, '0') + ':' + String(tt % 60).padStart(2, '0');
   $('hubS').textContent = fmt(res.sp); $('fps').textContent = fpsv + ' i/s';
@@ -1897,7 +1921,8 @@ function refreshHud(fpsv) {
 // Le juge (+ 2 adjoints) nettoie les pièces, libère les otages, arrête les criminels.
 // =====================================================================
 const RAIDS = [];
-(function pickRaids() {
+function pickRaids() {
+  RAIDS.length = 0;
   const n = nBuildings, rects = [];
   for (let i = 0; i < n; i++) rects.push([bData[i * 5], bData[i * 5 + 1], bData[i * 5 + 2], bData[i * 5 + 3], bData[i * 5 + 4]]);
   const find = (minW, dmin, dmax, gap) => {
@@ -1922,8 +1947,9 @@ const RAIDS = [];
   for (const c of cand.sort((a, b) => a.dd - b.dd)) { if (pick.length >= NB) break; if (!pick.includes(c)) pick.push(c); }
   const names = ['Appartement', 'Entrepôt', 'Planque du gang', 'Commissariat occupé', 'Bar des Lames'];
   const kinds = ['rescue', 'arrest', 'rescue', 'mixed', 'arrest'];
-  pick.forEach((c, i) => RAIDS.push({ x: c.x, z: c.z, w: c.w, d: c.d, h: c.h, doorX: c.x, doorZ: c.z + c.d / 2 + 2.2, name: names[i % names.length], kind: kinds[i % kinds.length], seed: 9100 + i * 77, done: false, tries: 0 }));
-})();
+  pick.forEach((c, i) => RAIDS.push({ x: c.x, z: c.z, w: c.w, d: c.d, h: c.h, doorX: c.x, doorZ: c.z + c.d / 2 + 2.2, name: names[i % names.length], kind: kinds[i % kinds.length], seed: 9100 + i * 77 + LEVEL.n * 1000, done: false, tries: 0, locked: i > 0, lvl: i }));
+}
+pickRaids();
 
 const RD = { active: false, paused: false, over: null, raid: null, M: null, t: 0 };
 const T_YARD = 0, T_WALL = 1, T_FLOOR = 2, T_DOOR = 3, T_VOID = 4;
@@ -2315,7 +2341,7 @@ const rdKeys = () => keys;
 let rdStick = null, rdIx = 0, rdIy = 0, rdPadPrev = {};
 const rdSafe = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 function enterRaid(raid) {
-  if (RD.active || raid.done) return;
+  if (RD.active || raid.done || raid.locked) return;
   rdResize(); TS = Math.max(22, Math.min(34, Math.round(Math.min(rdW / 44, rdH / 26))));
   let M = null; for (let a = 0; a < 14 && !M; a++) M = genInterior(raid, a + raid.tries * 3);
   if (!M) { banner2('Bâtiment inaccessible'); return; }
@@ -2334,10 +2360,12 @@ function enterRaid(raid) {
   const rooms = M.leaves.slice(); let far = null, fdm = -1;
   for (const l of rooms) { const p = freeIn(l, 0); if (!p) continue; const dd = fd[Math.floor(p[1]) * M.GW + Math.floor(p[0])]; if (l.id !== M.exitLeaf && dd > fdm) { fdm = dd; far = l; } }
   for (const l of rooms) {
-    const ex0 = l.id === M.exitLeaf; const n = ex0 ? (R() < .35 ? 1 : 0) : (l.w * l.h < 190 ? 1 + (R() < .5 ? 1 : 0) : 2 + (R() < .7 ? 1 : 0));
+    const ex0 = l.id === M.exitLeaf; const n = ex0 ? (R() < .35 ? 1 : 0) : (l.w * l.h < 190 ? 1 + (R() < .35 ? 1 : 0) : 2 + (R() < .45 ? 1 : 0));
     for (let i = 0; i < n; i++) { const p = freeIn(l, ex0 ? 18 : 0); if (!p) continue; const q = R(), tp = (l === far && i === 0 && raid.kind !== 'rescue') ? 'chief' : (q < .42 ? 'punk' : q < .72 ? 'thug' : 'bruiser'); const T = EN[tp]; RD.en.push({ k: 'e', t: tp, x: p[0], y: p[1], a: R() * 6.28, hp: T.hp, maxhp: T.hp, st: 'idle', rt: 0, cd: .5 + R(), tgt: null, last: null, fld: null, fldT: 0, stun: 0, prog: 0, swing: 0, mv: false, skin: SKINS[R() * 4 | 0], room: l.id, wait: 0, hit: 0, ph: R() * 6.28, patrol: R() < .35 ? { ox: p[0], oy: p[1] } : null }); }
   }
-  { const cap = [10, 14, 18, 24][ACC.diff] + (RD.sq.length > 3 ? 0 : -2); while (RD.en.length > cap) { const idx = RD.en.findIndex(e => e.t !== 'chief' && e.t !== 'bruiser'); RD.en.splice(idx < 0 ? 0 : idx, 1); } }
+  { const cap = Math.round(([10, 14, 18, 24][ACC.diff] + (RD.sq.length > 3 ? 0 : -2)) * (1 + .07 * (raid.lvl || 0) + .08 * LEVEL.n)); while (RD.en.length > cap) { const idx = RD.en.findIndex(e => e.t !== 'chief' && e.t !== 'bruiser'); RD.en.splice(idx < 0 ? 0 : idx, 1); } }
+  { const lv = raid.lvl || 0; RD.lvK = 1 + .05 * lv + .06 * LEVEL.n; RD.dm = .8 * RD.lvK; RD.am = .82 + .02 * lv + .03 * LEVEL.n; RD.stage = 0; const maxD = Math.max(1, fdm);
+    for (const e of RD.en) { const dd = fd[Math.floor(e.y) * M.GW + Math.floor(e.x)], tier = Math.max(0, Math.min(1, dd / maxD)); e.tier = tier; if (e.t === 'punk' && tier > .6 && R() < .5) e.t = 'thug'; else if (e.t === 'thug' && tier > .8 && R() < .4) e.t = 'bruiser'; const T = EN[e.t]; e.hp = e.maxhp = Math.round(T.hp * (1 + .25 * tier) * (1 + .04 * lv + .05 * LEVEL.n)); } }
   const nh = raid.kind === 'rescue' ? 3 : raid.kind === 'mixed' ? 2 : 1;
   const hr = rooms.filter(l => l.id !== M.exitLeaf && l.type !== 'bath').sort(() => R() - .5);
   for (let i = 0; i < nh && i < hr.length; i++) { const p = freeIn(hr[i], 0); if (p) RD.hs.push({ k: 'h', x: p[0], y: p[1], a: R() * 6.28, st: 'tied', prog: 0, timer: 55, timer0: 55, swing: 0, skin: SKINS[R() * 4 | 0], name: 'OTAGE ' + (i + 1) }); }
@@ -2394,7 +2422,19 @@ function rdDown(f, a) {
   rdSplat(f.x, f.y, 14, true);
   if (f.k === 'j') { RD.over = 'lose'; rdEnd(); } else { f.dead = true; f.da = a; rdMsg('ADJOINT TOMBÉ', '', 2); }
 }
+function rdEscalate() {
+  const tot = RD.total.en, done = RD.en.filter(e => e.st === 'dead' || e.st === 'arrested').length, f = done / Math.max(1, tot), st = f >= .67 ? 2 : f >= .34 ? 1 : 0;
+  if (st > RD.stage && done < tot && !RD.cleared) { RD.stage = st; const n = st; rdMsg('RENFORTS ENNEMIS', 'Le combat se durcit : ' + n + ' criminel' + (n > 1 ? 's' : '') + ' de plus arrive' + (n > 1 ? 'nt' : ''), 3.5); sfx.alarm(); RD.alarm = true; for (let i = 0; i < n; i++) rdSpawnReinforcement(st); }
+}
+function rdSpawnReinforcement(st) {
+  const M = RD.M, j = RD.judge, R = M.R; let best = null, bd = -1;
+  for (let k = 0; k < 40; k++) { const l = M.leaves[R() * M.leaves.length | 0]; if (l.id === M.exitLeaf) continue; const x = l.x + 2 + (R() * (l.w - 4) | 0) + .5, y = l.y + 2 + (R() * (l.h - 4) | 0) + .5; if (!rdPass(M, Math.floor(x), Math.floor(y))) continue; const d = Math.hypot(x - j.x, y - j.y), vis = rdLos(M, j.x, j.y, x, y); const sc = d + (vis ? -30 : 0); if (sc > bd) { bd = sc; best = [x, y]; } }
+  if (!best) return; const q = Math.random(), tp = st >= 2 ? (q < .5 ? 'bruiser' : 'thug') : (q < .5 ? 'thug' : 'punk'), T = EN[tp], lv = RD.raid.lvl || 0;
+  RD.en.push({ k: 'e', t: tp, x: best[0], y: best[1], a: 0, hp: 0, maxhp: 0, st: 'hunt', rt: 0, cd: .6, tgt: null, last: { x: j.x, y: j.y }, fld: null, fldT: 0, stun: 0, prog: 0, swing: 0, mv: false, skin: SKINS[Math.random() * 4 | 0], room: -1, wait: 0, hit: 0, ph: Math.random() * 6, patrol: null, tier: .85 });
+  const e = RD.en[RD.en.length - 1]; e.hp = e.maxhp = Math.round(T.hp * 1.15 * (1 + .04 * lv + .05 * LEVEL.n)); RD.total.en++;
+}
 function rdCheck() {
+  rdEscalate();
   const en = RD.en.filter(e => e.st !== 'dead' && e.st !== 'arrested').length, hs = RD.hs.filter(h => h.st === 'tied' || h.st === 'fleeing').length;
   if (!en && !hs && !RD.cleared) { RD.cleared = true; rdMsg('BÂTIMENT SÉCURISÉ', 'Retournez à la porte pour sortir', 4); }
 }
@@ -2515,10 +2555,10 @@ function rdUpdate(dt) {
     let seen = null, sd = 1e9;
     for (const f of rdFriends()) { const d = rdSafe(e, f); if (d > 26) continue; let df = Math.atan2(f.y - e.y, f.x - e.x) - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; const fov = e.st === 'idle' ? 1.05 : 6.3; if ((d < 4.5 || Math.abs(df) < fov) && rdLos(M, e.x, e.y, f.x, f.y) && d < sd) { sd = d; seen = f; } }
     if (seen) {
-      if (e.st === 'idle' || e.st === 'hunt') { e.st = 'combat'; e.rt = .35 + Math.random() * .25; RD.alarm = true; for (const o of RD.en) if (o !== e && o.st === 'idle' && Math.hypot(o.x - e.x, o.y - e.y) < 20) { o.st = 'hunt'; o.last = { x: seen.x, y: seen.y }; o.wait = 0; } if (RD.t > 1) sfx.alarm(); }
+      if (e.st === 'idle' || e.st === 'hunt') { e.st = 'combat'; e.rt = .5 + Math.random() * .3; RD.alarm = true; for (const o of RD.en) if (o !== e && o.st === 'idle' && Math.hypot(o.x - e.x, o.y - e.y) < 20) { o.st = 'hunt'; o.last = { x: seen.x, y: seen.y }; o.wait = 0; } if (RD.t > 1) sfx.alarm(); }
       e.last = { x: seen.x, y: seen.y }; e.seenT = 0; e.tgt = seen;
       const want = Math.atan2(seen.y - e.y, seen.x - e.x); let df = want - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; e.a += df * Math.min(1, dt * 10);
-      if (e.rt > 0) e.rt -= dt; else { e.cd -= dt; if (e.cd <= 0 && sd < T.rng) { e.cd = T.cd * (.8 + Math.random() * .5); rdShoot(e, seen, T.dmg, T.acc, 'e', T.wp); } }
+      if (e.rt > 0) e.rt -= dt; else { e.cd -= dt; if (e.cd <= 0 && sd < T.rng) { e.cd = T.cd * (.8 + Math.random() * .5); rdShoot(e, seen, T.dmg * RD.dm * (1 + .15 * (e.tier || 0)), Math.min(.92, T.acc * RD.am * (1 + .12 * RD.stage)), 'e', T.wp); } }
       if (sd > T.rng * .65) { rdChase(e, seen.x, seen.y, T.spd * .75, dt); } else if (sd < 4.5 && e.t !== 'bruiser') { rdMove(M, e, (e.x - seen.x) / sd * 2.5 * dt, (e.y - seen.y) / sd * 2.5 * dt, .42); e.mv = true; }
       else if (e.t === 'bruiser') rdChase(e, seen.x, seen.y, T.spd, dt);
     } else if (e.st === 'combat' || e.st === 'hunt') {
@@ -2586,7 +2626,7 @@ function exitRaid(quit) {
   const jd = units.find(u => u.type === 'JD');
   if (quit || !r) { raid.tries++; banner2('Raid abandonné'); return; }
   if (r.win) {
-    raid.done = true; res.sp += r.reward; if (jd) { jd.hp = jd.maxhp; const cq = newUnit('CQ', jd.x + 5, jd.z + 5); cq.follow = true; }
+    raid.done = true; unlockNext('raid'); res.sp += r.reward; if (jd) { jd.hp = jd.maxhp; const cq = newUnit('CQ', jd.x + 5, jd.z + 5); cq.follow = true; }
     bannerBig('BÂTIMENT SÉCURISÉ', '+' + r.reward + ' appui · un coéquipier se joint à vous'); sfx.horn();
   } else { raid.tries++; res.sp = Math.max(0, res.sp - 80); banner2('RAID ÉCHOUÉ : -80 appui'); }
   selDirty = true;
@@ -2881,7 +2921,7 @@ function buildBrief() {
 // ---------- Marqueurs et accès depuis la carte ----------
 function nearRaid() {
   const j = units.find(u => u.type === 'JD'); if (!j) return null; let best = null, bd = 1e9;
-  for (const r of RAIDS) { if (r.done) continue; const d = Math.hypot(j.x - r.doorX, j.z - r.doorZ); if (d < 10 && d < bd) { bd = d; best = r; } }
+  for (const r of RAIDS) { if (r.done || r.locked) continue; const d = Math.hypot(j.x - r.doorX, j.z - r.doorZ); if (d < 10 && d < bd) { bd = d; best = r; } }
   return best;
 }
 function tryEnter() { if (RD.active || G_.over || opts.paused || !G_.started || briefRaid) return; const r = nearRaid(); if (r) openBriefing(r); else banner2('Approchez-vous de la porte d\'un bâtiment marqué'); }
@@ -2890,14 +2930,134 @@ let enterShown = null;
 function rdOutside() { const r = (G_.started && !G_.over) ? nearRaid() : null; if (r !== enterShown) { enterShown = r; bEnter.style.display = r ? 'block' : 'none'; if (r) bEnter.innerHTML = 'ENTRER : ' + r.name.toUpperCase() + ' <small>(Entrée)</small>'; } }
 function drawRaidMarks(t) {
   for (const r of RAIDS) {
-    const pr = proj(r.doorX, 2.5, r.doorZ); if (!pr) continue; const col = r.done ? '#6fcf6a' : '#E8833A';
+    const pr = proj(r.doorX, 2.5, r.doorZ); if (!pr) continue; const col = r.done ? '#6fcf6a' : r.locked ? '#7b8494' : '#E8833A';
     const c4 = [[r.x - r.w / 2, r.z - r.d / 2], [r.x + r.w / 2, r.z - r.d / 2], [r.x + r.w / 2, r.z + r.d / 2], [r.x - r.w / 2, r.z + r.d / 2]].map(p => proj(p[0], .4, p[1]));
     if (c4.every(Boolean)) { fx.strokeStyle = col; fx.globalAlpha = r.done ? .35 : .55 + .25 * Math.sin(t * 3); fx.lineWidth = 2; fx.setLineDash([10, 8]); fx.beginPath(); c4.forEach((p, i) => i ? fx.lineTo(p[0], p[1]) : fx.moveTo(p[0], p[1])); fx.closePath(); fx.stroke(); fx.setLineDash([]); fx.globalAlpha = 1; }
     const rr = Math.max(11, Math.min(20, 3.2 * ppmOf(pr[2]))), by = pr[1] - rr * 1.6 - (r.done ? 0 : 4 * Math.abs(Math.sin(t * 3)));
     fx.fillStyle = 'rgba(12,14,18,.9)'; fx.beginPath(); fx.arc(pr[0], by, rr, 0, 6.283); fx.fill(); fx.strokeStyle = col; fx.lineWidth = 2.5; fx.stroke();
     fx.fillStyle = col; fx.fillRect(pr[0] - rr * .3, by - rr * .5, rr * .6, rr); fx.fillStyle = '#12141a'; fx.fillRect(pr[0] - rr * .18, by - rr * .36, rr * .36, rr * .8); fx.fillStyle = col; fx.fillRect(pr[0] + rr * .05, by + rr * .05, rr * .08, rr * .1);
-    if (cam.dist < 520) { fx.font = '700 11px system-ui'; fx.textAlign = 'center'; fx.strokeStyle = 'rgba(0,0,0,.85)'; fx.lineWidth = 3; const lab = r.name + (r.done ? ' · fait' : ' · RAID'); fx.strokeText(lab, pr[0], by - rr - 4); fx.fillStyle = r.done ? '#9fe29a' : '#ffd0a0'; fx.fillText(lab, pr[0], by - rr - 4); }
+    if (cam.dist < 520) { fx.font = '700 11px system-ui'; fx.textAlign = 'center'; fx.strokeStyle = 'rgba(0,0,0,.85)'; fx.lineWidth = 3; const lab = r.name + (r.done ? ' · fait' : r.locked ? ' · verrouillé' : ' · RAID'); fx.strokeText(lab, pr[0], by - rr - 4); fx.fillStyle = r.done ? '#9fe29a' : '#ffd0a0'; fx.fillText(lab, pr[0], by - rr - 4); }
   }
+}
+// ---------- Campagne : niveaux, objectifs verrouillés ----------
+const LEVELS = [{ name: 'Secteur 1 · Le Port', tod: 1 }, { name: 'Secteur 2 · Quartier Nord', tod: 2 }, { name: 'Secteur 3 · Zone industrielle', tod: 1 }, { name: 'Secteur 4 · Centre-ville', tod: 2 }, { name: 'Secteur 5 · Le Bunker', tod: 2 }];
+let WAY = null, smapOpen = false, smapPrev = false, smapSel = null, lvlPrev = false, smTimer = 0;
+const gridName = (x, z) => 'ABCDEFGHIJ'[Math.max(0, Math.min(9, Math.floor((x + HALF) / 100)))] + (Math.max(0, Math.min(9, Math.floor((z + HALF) / 100))) + 1);
+function loadLevel() {
+  LEVEL.seed = LEVEL.n; makeCity(); bData = new Float32Array(buildings); nBuildings = bData.length / 5;
+  gl.bindBuffer(gl.ARRAY_BUFFER, bBuf); gl.bufferData(gl.ARRAY_BUFFER, bData, gl.STATIC_DRAW);
+  resetWalls(); blockDirty = true; makeRuins(); pickRaids(); redrawMiniBg(); opts.tod = LEVELS[LEVEL.n].tod; WAY = null; smapSel = null; buildField(FC, FC); refreshTop();
+}
+function unlockNext(why) {
+  const r = RAIDS.find(x => x.locked); if (!r) return; r.locked = false;
+  alertB('POSITION DÉBLOQUÉE : ' + r.name.toUpperCase() + ' · ' + gridName(r.doorX, r.doorZ));
+}
+function levelComplete() {
+  WV.phase = 'done'; const n = LEVEL.n; if (n >= LEVELS.length - 1) { endGame('win'); return; }
+  lvlPrev = opts.paused; opts.paused = true; refreshTop(); sfx.win();
+  $('lvlT').textContent = 'SECTEUR ' + (n + 1) + ' SÉCURISÉ';
+  $('lvlP').innerHTML = `${LEVELS[n].name}<br>Criminels neutralisés : <b>${fmt(S.kills)}</b><br>Bâtiments libérés : <b>${RAIDS.filter(r => r.done).length}/${RAIDS.length}</b><br><br>Prochain secteur : <b>${LEVELS[n + 1].name}</b><br>Nouvelle ville, adversaires plus nombreux. Vos unités sont soignées et réapprovisionnées, vous gardez vos points d'appui.`;
+  $('lvl').style.display = 'flex';
+}
+function startLevel(n) {
+  $('lvl').style.display = 'none'; LEVEL.n = n; loadLevel();
+  corpse.fill(0); densR.fill(0); densW.fill(0); marks.fill(0); mkMin = 0; mkMax = MK - 1; mkForce = true; S.corpseDirty = true; N = 0;
+  timers.length = 0; decoys.length = 0; parts.length = 0; tracers.length = 0; rings.length = 0; mines.length = 0; armed = null; armedItem = null;
+  res.hq = 1000; res.sp += 150; S.time = 0; Object.assign(WV, { i: 0, phase: 'prep', t: 45, left: 0, acc: 0 });
+  let k = 0; for (const u of units) { u.hp = u.maxhp; u.order = null; u.x = FOBX + (k % 6 - 2.5) * 5; u.z = FOBZ + 8 + ((k / 6) | 0) * 5; k++; if (u.men) u.men.forEach(m => { m.x = u.x + m.ox; m.z = u.z + m.oz; }); if (u.type !== 'JD') { u.follow = true; u.hold = false; u.amb = false; } for (const kk in INV0[u.type]) u.inv[kk] = INV0[u.type][kk]; }
+  const jd = units.find(u => u.type === 'JD'); if (jd) { selectSet([jd], false); cam.tx = jd.x; cam.tz = jd.z; } camFollow = true; cam.dist = 130;
+  G_.over = null; opts.paused = lvlPrev; refreshTop(); seed = 4242 + n * 17; selDirty = true;
+  bannerBig(LEVELS[n].name.toUpperCase(), 'Nouvelle ville · première vague dans 45 s · ouvrez la carte (M)');
+}
+$('lvlB').onclick = () => startLevel(LEVEL.n + 1);
+
+// ---------- Carte stratégique ----------
+const smEl = document.createElement('div'); smEl.id = 'smap';
+smEl.innerHTML = '<canvas id="smapC"></canvas><div id="smapTop"><b>CARTE STRATÉGIQUE</b><span id="smapInfo"></span><button id="smapX">Fermer (M)</button></div><div id="smapPanel"></div><div id="smapHint">Molette ou pincer : zoomer · glisser : déplacer · toucher un objectif ou un point libre (repère)</div>';
+document.body.appendChild(smEl);
+const smc = $('smapC'), smx = smc.getContext('2d'), sm = { z: 1, cx: 0, cz: 0, ptrs: new Map(), pinch: null, moved: false, dpr: 1 };
+const smBase = () => Math.min(innerWidth, innerHeight) / 1080, smScale = () => smBase() * sm.z;
+const smW2S = (x, z) => [innerWidth / 2 + (x - sm.cx) * smScale(), innerHeight / 2 + (z - sm.cz) * smScale()];
+const smS2W = (px, py) => [sm.cx + (px - innerWidth / 2) / smScale(), sm.cz + (py - innerHeight / 2) / smScale()];
+const KIND = { rescue: 'Sauvetage d\'otages', arrest: 'Arrestation du chef', mixed: 'Otages et chef' };
+function toggleMap() {
+  if (smapOpen) { smapOpen = false; smEl.style.display = 'none'; clearInterval(smTimer); opts.paused = smapPrev; refreshTop(); return; }
+  if (RD.active || !G_.started || G_.over) return;
+  smapOpen = true; smapPrev = opts.paused; opts.paused = true; refreshTop(); smEl.style.display = 'block';
+  const j = units.find(u => u.type === 'JD'); sm.z = 1.6; sm.cx = j ? j.x : 0; sm.cz = j ? j.z : 0; smapSel = null; smPanel(); smDraw(); smTimer = setInterval(smDraw, 90);
+}
+function smDraw() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1); if (smc.width !== Math.round(innerWidth * dpr) || smc.height !== Math.round(innerHeight * dpr)) { smc.width = Math.round(innerWidth * dpr); smc.height = Math.round(innerHeight * dpr); }
+  const c = smx, S0 = smScale(); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.fillStyle = '#08121f'; c.fillRect(0, 0, innerWidth, innerHeight);
+  const [x0, y0] = smW2S(-HALF, -HALF), [x1, y1] = smW2S(HALF, HALF); c.fillStyle = '#0f1c2d'; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+  c.strokeStyle = 'rgba(90,140,190,.2)'; c.lineWidth = 1; c.font = '700 ' + Math.max(10, Math.min(22, 11 * sm.z)) + 'px system-ui'; c.textAlign = 'center';
+  for (let i = 0; i <= 10; i++) { const [gx, gy] = smW2S(-HALF + i * 100, -HALF + i * 100); c.beginPath(); c.moveTo(gx, y0); c.lineTo(gx, y1); c.moveTo(x0, gy); c.lineTo(x1, gy); c.stroke(); }
+  if (sm.z > 1.3) { c.fillStyle = 'rgba(140,190,240,.28)'; for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) { const [gx, gy] = smW2S(-HALF + i * 100 + 50, -HALF + j * 100 + 50); c.fillText('ABCDEFGHIJ'[i] + (j + 1), gx, gy + 4); } }
+  c.fillStyle = '#28405a'; for (let i = 0; i < nBuildings; i++) { const x = bData[i * 5], z = bData[i * 5 + 1], w = bData[i * 5 + 2], d = bData[i * 5 + 3], [a, b] = smW2S(x - w / 2, z - d / 2); c.fillRect(a, b, Math.max(1.5, w * S0), Math.max(1.5, d * S0)); }
+  // horde
+  if (N > 0) { for (let cz = 0; cz < 98; cz++) for (let cx = 0; cx < 98; cx++) { let s = 0; for (let dz = 0; dz < 5; dz++) { const row = (cz * 5 + dz) * DG + cx * 5; for (let dx = 0; dx < 5; dx++) s += densR[row + dx]; } if (s > 0) { const [a, b] = smW2S(-HALF + cx * 10, -HALF + cz * 10); c.fillStyle = `rgba(235,60,40,${Math.min(.85, .25 + s / 60)})`; c.fillRect(a, b, 10 * S0 + 1, 10 * S0 + 1); } } }
+  // fort
+  { const [a, b] = smW2S(FOBX - 33, FOBZ - 33); c.fillStyle = 'rgba(232,131,58,.14)'; c.fillRect(a, b, 66 * S0, 66 * S0); c.strokeStyle = '#E8833A'; c.lineWidth = 2; c.strokeRect(a, b, 66 * S0, 66 * S0); c.fillStyle = '#E8833A'; c.font = '800 12px system-ui'; c.fillText('FOB ALPHA', a + 33 * S0, b - 6); }
+  // flèches d'assaut
+  if (WV.phase === 'spawn' || WV.phase === 'fight' || WV.phase === 'prep') for (const s of WV.sides) { const a = s * Math.PI / 2, [px, py] = smW2S(Math.cos(a) * 470, Math.sin(a) * 470); c.save(); c.translate(px, py); c.rotate(a + Math.PI); c.fillStyle = WV.phase === 'prep' ? 'rgba(229,72,59,.45)' : '#e5483b'; c.beginPath(); c.moveTo(0, -16); c.lineTo(11, 8); c.lineTo(-11, 8); c.closePath(); c.fill(); c.restore(); c.fillStyle = '#ff9a8a'; c.font = '700 11px system-ui'; c.fillText(WV.phase === 'prep' ? 'VAGUE PRÉVUE' : 'VAGUE', px, py + (Math.sin(a) > 0 ? -22 : 28)); }
+  const j = units.find(u => u.type === 'JD');
+  // route
+  const tg = smapSel ? { x: smapSel.doorX, z: smapSel.doorZ } : WAY ? { x: WAY.x, z: WAY.z } : null;
+  if (tg && j) { const [ja, jb] = smW2S(j.x, j.z), [ta, tb] = smW2S(tg.x, tg.z); c.strokeStyle = '#6fd0ff'; c.lineWidth = 2.5; c.setLineDash([9, 7]); c.beginPath(); c.moveTo(ja, jb); c.lineTo(ta, tb); c.stroke(); c.setLineDash([]); const d = Math.round(Math.hypot(tg.x - j.x, tg.z - j.z)); c.fillStyle = '#bfe8ff'; c.font = '800 13px system-ui'; c.strokeStyle = 'rgba(0,0,0,.8)'; c.lineWidth = 3; c.strokeText(d + ' m', (ja + ta) / 2, (jb + tb) / 2 - 8); c.fillText(d + ' m', (ja + ta) / 2, (jb + tb) / 2 - 8); }
+  // objectifs
+  for (const r of RAIDS) {
+    const [px, py] = smW2S(r.doorX, r.doorZ), col = r.done ? '#6fcf6a' : r.locked ? '#7b8494' : '#E8833A', sel = smapSel === r;
+    const [ba, bb] = smW2S(r.x - r.w / 2, r.z - r.d / 2); c.strokeStyle = col; c.globalAlpha = .55; c.lineWidth = 2; c.strokeRect(ba, bb, r.w * S0, r.d * S0); c.globalAlpha = 1;
+    c.fillStyle = 'rgba(10,16,24,.92)'; c.beginPath(); c.arc(px, py, sel ? 15 : 12, 0, 6.283); c.fill(); c.strokeStyle = sel ? '#fff' : col; c.lineWidth = sel ? 3 : 2.5; c.stroke();
+    c.fillStyle = col; if (r.locked) { c.fillRect(px - 5, py - 1, 10, 7); c.lineWidth = 2; c.beginPath(); c.arc(px, py - 2, 3.5, Math.PI, 0); c.strokeStyle = col; c.stroke(); } else if (r.done) { c.font = '800 15px system-ui'; c.fillText('✔', px, py + 5); } else { c.fillRect(px - 4, py - 6, 8, 12); c.fillStyle = '#0a1018'; c.fillRect(px - 2, py - 4, 4, 9); }
+    c.font = '800 12px system-ui'; c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 3; const lab = r.name + ' · ' + gridName(r.doorX, r.doorZ); c.strokeText(lab, px, py - 20); c.fillStyle = r.locked ? '#aab3c0' : '#ffd8b0'; c.fillText(lab, px, py - 20);
+  }
+  if (WAY) { const [px, py] = smW2S(WAY.x, WAY.z); c.strokeStyle = '#6fd0ff'; c.lineWidth = 3; c.beginPath(); c.arc(px, py, 14, 0, 6.283); c.stroke(); c.fillStyle = '#6fd0ff'; c.beginPath(); c.moveTo(px, py + 2); c.lineTo(px, py - 24); c.lineTo(px + 14, py - 18); c.lineTo(px, py - 12); c.closePath(); c.fill(); c.fillStyle = '#bfe8ff'; c.font = '800 12px system-ui'; c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 3; c.strokeText(WAY.name, px, py + 30); c.fillText(WAY.name, px, py + 30); }
+  for (const u of units) { const [px, py] = smW2S(u.x, u.z); if (u.type === 'JD') continue; c.fillStyle = '#4fa8e0'; c.fillRect(px - 2.5, py - 2.5, 5, 5); }
+  if (j) { const [px, py] = smW2S(j.x, j.z); c.save(); c.translate(px, py); c.rotate(-j.yaw + Math.PI); c.fillStyle = '#ffd24a'; c.strokeStyle = '#000'; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 9); c.lineTo(0, 5); c.lineTo(-8, 9); c.closePath(); c.fill(); c.stroke(); c.restore(); c.fillStyle = '#ffd24a'; c.font = '800 11px system-ui'; c.fillText('JUGE', px, py + 24); }
+  $('smapInfo').textContent = (j ? 'Juge en ' + gridName(j.x, j.z) + ' · ' : '') + LEVELS[LEVEL.n].name + ' · ' + RAIDS.filter(r => r.done).length + '/' + RAIDS.length + ' bâtiments libérés';
+}
+function smPanel() {
+  const r = smapSel, j = units.find(u => u.type === 'JD'), p = $('smapPanel'); let h;
+  if (r) { const d = j ? Math.hypot(j.x - r.doorX, j.z - r.doorZ) : 0; h = `<h3>${r.name}</h3><div class="smi">${KIND[r.kind]}<br>Position <b>${gridName(r.doorX, r.doorZ)}</b> · distance <b>${Math.round(d)} m</b> (environ ${Math.round(d / 9.5)} s)<br>État : <b>${r.done ? 'sécurisé ✔' : r.locked ? 'verrouillé : repoussez la prochaine vague ou libérez un bâtiment' : 'disponible'}</b><br>Danger : <b>${'★'.repeat(Math.min(5, (r.lvl || 0) + LEVEL.n + 1))}</b></div><div class="smb"><button data-a="go">Y aller (juge)</button><button data-a="team">Envoyer l'équipe</button><button data-a="way">${WAY && WAY.ref === r ? 'Retirer le repère' : 'Placer un repère'}</button></div>`; }
+  else if (WAY) { const d = j ? Math.hypot(j.x - WAY.x, j.z - WAY.z) : 0; h = `<h3>${WAY.name}</h3><div class="smi">Distance <b>${Math.round(d)} m</b></div><div class="smb"><button data-a="go">Y aller (juge)</button><button data-a="team">Envoyer l'équipe</button><button data-a="way">Retirer le repère</button></div>`; }
+  else h = '<div class="smi">Touchez un objectif (icône de porte) pour voir sa position, sa distance et son niveau de danger, ou un point libre pour placer un repère.</div>';
+  p.innerHTML = h;
+  p.querySelectorAll('button').forEach(b => b.onclick = () => {
+    const a = b.dataset.a, t = r ? { x: r.doorX, z: r.doorZ, name: r.name, ref: r } : WAY; if (!t) return;
+    if (a === 'way') { WAY = (WAY && WAY.ref === r && r) ? null : (r ? { x: r.doorX, z: r.doorZ, name: r.name + ' · ' + gridName(r.doorX, r.doorZ), ref: r } : null); smPanel(); smDraw(); return; }
+    if (r && r.locked) { sfx.err(); return; }
+    if (!WAY || WAY.ref !== r) WAY = { x: t.x, z: t.z, name: t.name + ' · ' + gridName(t.x, t.z), ref: r || null };
+    if (a === 'go' && j) orderMove([j], t.x, t.z); else orderMove(units.filter(u => u.type !== 'JD'), t.x, t.z);
+    toggleMap(); camFollow = true; banner2('En route vers ' + WAY.name);
+  });
+}
+function smPick(px, py) { let best = null, bd = 22; for (const r of RAIDS) { const [a, b] = smW2S(r.doorX, r.doorZ), d = Math.hypot(a - px, b - py); if (d < bd) { bd = d; best = r; } } return best; }
+smc.style.touchAction = 'none';
+smc.addEventListener('wheel', e => { e.preventDefault(); const [wx, wz] = smS2W(e.clientX, e.clientY); sm.z = Math.max(.8, Math.min(8, sm.z * Math.pow(1.0015, -e.deltaY))); const [nx, nz] = smS2W(e.clientX, e.clientY); sm.cx += wx - nx; sm.cz += wz - nz; smDraw(); }, { passive: false });
+smc.addEventListener('pointerdown', e => { smc.setPointerCapture(e.pointerId); sm.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }); sm.moved = false; if (sm.ptrs.size === 2) { const [a, b] = [...sm.ptrs.values()]; sm.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: sm.z }; sm.moved = true; } });
+smc.addEventListener('pointermove', e => {
+  const p = sm.ptrs.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (sm.ptrs.size === 2 && sm.pinch) { const [a, b] = [...sm.ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y) || 1; sm.z = Math.max(.8, Math.min(8, sm.pinch.z * d / sm.pinch.d)); sm.cx -= dx / 2 / smScale(); sm.cz -= dy / 2 / smScale(); }
+  else { if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) > 7) sm.moved = true; if (sm.moved) { sm.cx -= dx / smScale(); sm.cz -= dy / smScale(); } }
+  smDraw();
+});
+const smUp = e => { const p = sm.ptrs.get(e.pointerId); sm.ptrs.delete(e.pointerId); if (sm.ptrs.size < 2) sm.pinch = null; if (!p || sm.moved || e.type === 'pointercancel') return; const hit = smPick(e.clientX, e.clientY); if (hit) smapSel = hit; else { const [wx, wz] = smS2W(e.clientX, e.clientY); smapSel = null; WAY = { x: wx, z: wz, name: 'Repère ' + gridName(wx, wz), ref: null }; } smPanel(); smDraw(); };
+smc.addEventListener('pointerup', smUp); smc.addEventListener('pointercancel', smUp);
+$('smapX').onclick = toggleMap; $('bMap').onclick = toggleMap;
+
+// ---------- Guide à l'écran : où aller ----------
+function drawGuide(t) {
+  const j = units.find(u => u.type === 'JD'); if (!j || G_.over) return;
+  let tg = WAY; if (!tg) { let bd = 1e9; for (const r of RAIDS) { if (r.done || r.locked) continue; const d = Math.hypot(r.doorX - j.x, r.doorZ - j.z); if (d < bd) { bd = d; tg = { x: r.doorX, z: r.doorZ, name: r.name + ' · ' + gridName(r.doorX, r.doorZ) }; } } }
+  if (!tg) return; const d = Math.round(Math.hypot(tg.x - j.x, tg.z - j.z)); if (d < 12) return;
+  const dx = tg.x - cam.tx, dz = tg.z - cam.tz, cs = Math.cos(cam.yaw), sn = Math.sin(cam.yaw), u = dx * cs - dz * sn, v = dx * sn + dz * cs, ang = Math.atan2(v, u), pr = proj(tg.x, 4, tg.z);
+  const mg = 46, cx = W2 / 2, cy = H2 / 2 - 20; let px, py, onScreen = false;
+  if (pr && pr[0] > mg && pr[0] < W2 - mg && pr[1] > mg + 20 && pr[1] < H2 - 150) { px = pr[0]; py = pr[1] - 26; onScreen = true; }
+  else { const k = Math.min((W2 / 2 - mg) / Math.max(.01, Math.abs(Math.cos(ang))), (H2 / 2 - mg - 60) / Math.max(.01, Math.abs(Math.sin(ang)))); px = cx + Math.cos(ang) * k; py = cy + Math.sin(ang) * k; }
+  fx.save(); fx.translate(px, py); if (!onScreen) fx.rotate(ang); else fx.translate(0, 6 * Math.sin(t * 4));
+  fx.fillStyle = '#6fd0ff'; fx.strokeStyle = 'rgba(0,0,0,.8)'; fx.lineWidth = 3; fx.beginPath(); if (onScreen) { fx.moveTo(0, 14); fx.lineTo(-11, -4); fx.lineTo(11, -4); } else { fx.moveTo(16, 0); fx.lineTo(-8, -11); fx.lineTo(-8, 11); } fx.closePath(); fx.stroke(); fx.fill(); fx.restore();
+  fx.font = '800 12px system-ui'; fx.textAlign = 'center'; fx.strokeStyle = 'rgba(0,0,0,.85)'; fx.lineWidth = 3; const lab = tg.name + ' · ' + d + ' m', ly = onScreen ? py - 14 : py + (Math.sin(ang) > 0 ? -18 : 28); fx.strokeText(lab, px, ly); fx.fillStyle = '#bfe8ff'; fx.fillText(lab, px, ly);
 }
 
 // ---------- Boucle ----------
