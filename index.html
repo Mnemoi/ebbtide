@@ -216,6 +216,8 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
 <label>Difficulté <select id="accDiff"><option value="0">Facile</option><option value="1">Normale</option><option value="2">Difficile</option><option value="3">Hardcore</option></select></label>
 <label>Réduire les effets (secousses, éclairs) <input type="checkbox" id="accCalm"></label>
 <label>Contraste élevé <input type="checkbox" id="accHc"></label>
+<label>Effets sonores <select id="accSfx"><option value="0">Coupés</option><option value="0.5">Faibles</option><option value="1">Normaux</option><option value="1.4">Forts</option></select></label>
+<label>Musique d'ambiance <select id="accMus"><option value="0">Coupée</option><option value="0.4">Faible</option><option value="0.8">Normale</option></select></label>
 <button class="big" id="accClose">OK</button></div></div>
 <div id="ohelp" role="dialog" aria-label="Aide"><div class="box"><h3>Commandes de la carte</h3><table>
 <tr><td>Clic sur une unité · cadre</td><td>sélectionner (Maj = ajouter) · double-clic = toutes les unités du même type</td></tr>
@@ -299,7 +301,7 @@ const P = {
   CLIMB: 4.0, CORPSE: 0.1, PILE_MAX: 8,
   TOWER_RANGE: 78, TOWER_RATE: 0.05, TOWER_KILLS: 2, TOWER_SAMPLES: 14,
 };
-const ACC = Object.assign({ ui: 1, diff: 1, calm: false, hc: false }, (() => { try { return JSON.parse(localStorage.getItem('ebbtideAcc') || '{}'); } catch (e) { return {}; } })());
+const ACC = Object.assign({ ui: 1, diff: 1, calm: false, hc: false, sfx: 1, mus: .8 }, (() => { try { return JSON.parse(localStorage.getItem('ebbtideAcc') || '{}'); } catch (e) { return {}; } })());
 const DMUL = [.5, 1, 1.35, 1.8], WMUL = [.5, 1, 1.4, 1.9];
 const opts = { lod: true, tod: 1, paused: false, speed: 1, snd: true };
 const TOD = [
@@ -1173,41 +1175,136 @@ function drawHudWorld(t) {
   if (boxSel && boxSel.on) { const x = Math.min(boxSel.x0, boxSel.x1), y = Math.min(boxSel.y0, boxSel.y1), w = Math.abs(boxSel.x1 - boxSel.x0), h = Math.abs(boxSel.y1 - boxSel.y0); fx.fillStyle = 'rgba(111,207,106,.1)'; fx.fillRect(x, y, w, h); fx.strokeStyle = '#6fcf6a'; fx.lineWidth = 1; fx.strokeRect(x + .5, y + .5, w, h); }
 }
 
-// ---------- Sons ----------
-const AU = { ctx: null, master: null, noise: null, eng: null, hord: null, last: 0 };
-function auInit() {
+// ---------- Sons : moteur de synthèse (effets, ambiance, musique) ----------
+const AU = { ctx: null, master: null, sfxBus: null, musBus: null, revSend: null, noise: null, last: {}, busMus: false, duckUntil: 0, indoor: false, mode: 'map', nextBeat: 0, beat: 0, offline: false, tgt: { pad: .38, tense: 0, wind: .07, drums: 0, tempo: 84, hord: 0, eng: 0 } };
+function auImpulse(C, dur, decay) {
+  const n = Math.floor(C.sampleRate * dur), b = C.createBuffer(2, n, C.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); let lp = 0; for (let i = 0; i < n; i++) { const t = i / n; lp += (Math.random() * 2 - 1 - lp) * (.6 - .45 * t); d[i] = lp * Math.pow(1 - t, decay) * (i < 300 ? i / 300 : 1) * .55; } }
+  return b;
+}
+function auInit(ov) {
   if (AU.ctx) return;
   try {
-    const C = AU.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    AU.master = C.createGain(); AU.master.gain.value = .55; AU.master.connect(C.destination);
-    const nb = C.createBuffer(1, C.sampleRate * 2, C.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; AU.noise = nb;
-    const o = C.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 46; const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180; const g = C.createGain(); g.gain.value = 0; o.connect(f); f.connect(g); g.connect(AU.master); o.start(); AU.eng = g;
-    const s = C.createBufferSource(); s.buffer = nb; s.loop = true; const bp = C.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 280; bp.Q.value = .7; const g2 = C.createGain(); g2.gain.value = 0; s.connect(bp); bp.connect(g2); g2.connect(AU.master); s.start(); AU.hord = g2;
-    const lfo = C.createOscillator(); lfo.frequency.value = .35; const lg = C.createGain(); lg.gain.value = 90; lfo.connect(lg); lg.connect(bp.frequency); lfo.start();
+    const C = AU.ctx = ov || new (window.AudioContext || window.webkitAudioContext)(); AU.offline = !!ov;
+    const comp = C.createDynamicsCompressor(); comp.threshold.value = -15; comp.knee.value = 14; comp.ratio.value = 5; comp.attack.value = .004; comp.release.value = .22;
+    AU.master = C.createGain(); AU.master.gain.value = .76; AU.master.connect(comp); comp.connect(C.destination);
+    AU.sfxBus = C.createGain(); AU.sfxBus.connect(AU.master); AU.musBus = C.createGain(); AU.musBus.connect(AU.master);
+    AU.revSend = C.createGain(); AU.revSend.gain.value = 1;
+    AU.revOutC = C.createConvolver(); AU.revOutC.buffer = auImpulse(C, 1.8, 2.8); AU.revOutG = C.createGain(); AU.revOutG.gain.value = .4;
+    AU.revInC = C.createConvolver(); AU.revInC.buffer = auImpulse(C, .75, 3.2); AU.revInG = C.createGain(); AU.revInG.gain.value = 0;
+    const rhp = C.createBiquadFilter(); rhp.type = 'highpass'; rhp.frequency.value = 220; const rlp = C.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 6500; rhp.connect(rlp); rlp.connect(AU.master);
+    AU.revSend.connect(AU.revOutC); AU.revOutC.connect(AU.revOutG); AU.revOutG.connect(rhp); AU.revSend.connect(AU.revInC); AU.revInC.connect(AU.revInG); AU.revInG.connect(rhp);
+    const nb = C.createBuffer(1, C.sampleRate * 3, C.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; AU.noise = nb;
+    // nappe sombre
+    const lpf = C.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 260; lpf.Q.value = .8; AU.pad = C.createGain(); AU.pad.gain.value = 0;
+    [[55, 0], [82.41, 6], [110, -5], [27.5, 0]].forEach(([f, dt], i) => { const o = C.createOscillator(); o.type = i === 3 ? 'sine' : 'sawtooth'; o.frequency.value = f; o.detune.value = dt; const g = C.createGain(); g.gain.value = i === 3 ? .9 : .32; o.connect(g); g.connect(lpf); o.start(); });
+    lpf.connect(AU.pad); AU.pad.connect(AU.musBus); const l1 = C.createOscillator(); l1.frequency.value = .07; const lg = C.createGain(); lg.gain.value = 140; l1.connect(lg); lg.connect(lpf.frequency); l1.start();
+    // cordes tendues (deux notes qui frottent)
+    const tl = C.createBiquadFilter(); tl.type = 'lowpass'; tl.frequency.value = 1100; AU.tense = C.createGain(); AU.tense.gain.value = 0; const trem = C.createGain(); trem.gain.value = .7;
+    [220, 233.08, 329.63].forEach((f, i) => { const o = C.createOscillator(); o.type = 'triangle'; o.frequency.value = f; o.detune.value = i * 3; const g = C.createGain(); g.gain.value = .3; o.connect(g); g.connect(tl); o.start(); });
+    tl.connect(trem); trem.connect(AU.tense); AU.tense.connect(AU.musBus); const rs = C.createGain(); rs.gain.value = .5; AU.tense.connect(rs); rs.connect(AU.revSend);
+    const l2 = C.createOscillator(); l2.frequency.value = .21; const lg2 = C.createGain(); lg2.gain.value = .25; l2.connect(lg2); lg2.connect(trem.gain); l2.start();
+    // vent et cendres
+    const ws = C.createBufferSource(); ws.buffer = nb; ws.loop = true; const wb = C.createBiquadFilter(); wb.type = 'bandpass'; wb.frequency.value = 420; wb.Q.value = .5; AU.wind = C.createGain(); AU.wind.gain.value = 0; ws.connect(wb); wb.connect(AU.wind); AU.wind.connect(AU.musBus); ws.start();
+    const l3 = C.createOscillator(); l3.frequency.value = .11; const lg3 = C.createGain(); lg3.gain.value = 200; l3.connect(lg3); lg3.connect(wb.frequency); l3.start();
+    // grondement de la horde et moteurs
+    const hs = C.createBufferSource(); hs.buffer = nb; hs.loop = true; const hb = C.createBiquadFilter(); hb.type = 'bandpass'; hb.frequency.value = 280; hb.Q.value = .7; AU.hord = C.createGain(); AU.hord.gain.value = 0; hs.connect(hb); hb.connect(AU.hord); AU.hord.connect(AU.sfxBus); hs.start();
+    const l4 = C.createOscillator(); l4.frequency.value = .35; const lg4 = C.createGain(); lg4.gain.value = 90; l4.connect(lg4); lg4.connect(hb.frequency); l4.start();
+    const eo = C.createOscillator(); eo.type = 'sawtooth'; eo.frequency.value = 46; const ef = C.createBiquadFilter(); ef.type = 'lowpass'; ef.frequency.value = 180; AU.eng = C.createGain(); AU.eng.gain.value = 0; eo.connect(ef); ef.connect(AU.eng); AU.eng.connect(AU.sfxBus); eo.start();
+    if (!AU.offline) { AU.nextBeat = C.currentTime + .2; setInterval(auSched, 60); }
+    auApplyVol();
   } catch (e) { AU.ctx = null; }
 }
-function nz(dur, f0, q, gain, type, f1) {
-  if (!AU.ctx || !opts.snd) return; const C = AU.ctx, t = C.currentTime;
-  const s = C.createBufferSource(); s.buffer = AU.noise; const f = C.createBiquadFilter(); f.type = type || 'bandpass'; f.frequency.setValueAtTime(f0, t); if (f1) f.frequency.exponentialRampToValueAtTime(f1, t + dur); f.Q.value = q;
-  const g = C.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0005, t + dur); s.connect(f); f.connect(g); g.connect(AU.master); s.start(t, Math.random() * 1.5, dur + .05);
+function auSpace(indoor) { AU.indoor = indoor; if (!AU.ctx) return; const t = AU.ctx.currentTime; AU.revOutG.gain.setTargetAtTime(indoor ? .06 : .4, t, .2); AU.revInG.gain.setTargetAtTime(indoor ? .5 : 0, t, .2); }
+function auApplyVol() {
+  if (!AU.ctx) return; const C = AU.ctx, on = opts.snd, ducked = performance.now() < AU.duckUntil ? .35 : 1;
+  AU.sfxBus.gain.setTargetAtTime(on ? (ACC.sfx == null ? 1 : ACC.sfx) : 0, C.currentTime, .05);
+  AU.musBus.gain.setTargetAtTime(on ? (ACC.mus == null ? .8 : ACC.mus) * .55 * ducked : 0, C.currentTime, .12);
 }
-function tone(f0, f1, dur, gain, type) {
-  if (!AU.ctx || !opts.snd) return; const C = AU.ctx, t = C.currentTime, o = C.createOscillator(); o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
-  const g = C.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0005, t + dur); o.connect(g); g.connect(AU.master); o.start(t); o.stop(t + dur + .05);
+function auOut(n, pan, wet, lp) {
+  const C = AU.ctx; let x = n;
+  if (lp) { const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; x.connect(f); x = f; }
+  if (pan && C.createStereoPanner) { const p = C.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); x.connect(p); x = p; }
+  x.connect(AU.busMus ? AU.musBus : AU.sfxBus);
+  if (wet > 0) { const s = C.createGain(); s.gain.value = wet; x.connect(s); s.connect(AU.revSend); }
 }
+function auNz(t, dur, type, f0, f1, q, gain, pan, wet, lp, atk) {
+  const C = AU.ctx, s = C.createBufferSource(); s.buffer = AU.noise; const f = C.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(f0, t);
+  if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); f.Q.value = q || .7;
+  const g = C.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, gain), t + (atk || .002)); g.gain.exponentialRampToValueAtTime(.0003, t + dur);
+  s.connect(f); f.connect(g); auOut(g, pan, wet, lp); s.start(t, Math.random() * 2, dur + .05);
+}
+function auOsc(t, type, f0, f1, dur, gain, pan, wet, lp, atk) {
+  const C = AU.ctx, o = C.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(10, f1), t + dur);
+  const g = C.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, gain), t + (atk || .004)); g.gain.exponentialRampToValueAtTime(.0003, t + dur);
+  o.connect(g); auOut(g, pan, wet, lp); o.start(t); o.stop(t + dur + .05);
+}
+const auOK = (name, gap) => { if (!AU.ctx || !opts.snd) return false; const n = performance.now(); if (n - (AU.last[name] || 0) < gap) return false; AU.last[name] = n; return true; };
+function nz(dur, f0, q, gain, type, f1) { if (!AU.ctx || !opts.snd) return; auNz(AU.ctx.currentTime, dur, type || 'bandpass', f0, f1, q, gain, 0, .2); }
+function tone(f0, f1, dur, gain, type) { if (!AU.ctx || !opts.snd) return; auOsc(AU.ctx.currentTime, type || 'sine', f0, f1, dur, gain, 0, .2); }
 const sfx = {
-  shot(v) { const n = performance.now(); if (n - AU.last < 45) return; AU.last = n; nz(.07, 2200, .8, .1 * (v || 1), 'bandpass', 900); },
-  cannon() { nz(.5, 700, .6, .5, 'lowpass', 90); tone(120, 40, .35, .5, 'sine'); },
-  boom(sz) { const s = Math.min(1.4, .4 + sz / 14); nz(.9 * s + .3, 900, .5, .7 * s, 'lowpass', 60); tone(80, 28, .8 * s + .2, .8 * s, 'sine'); },
-  horn() { tone(98, 96, 1.6, .22, 'sawtooth'); tone(147, 144, 1.6, .16, 'sawtooth'); },
-  ui() { tone(880, 660, .08, .08, 'square'); },
-  alarm() { tone(660, 520, .25, .12, 'square'); },
-  err() { tone(200, 120, .2, .12, 'square'); },
+  gun(kind, vol, pan, far, pt) {
+    if (!auOK('gun' + kind, kind === 'rifle' ? 45 : kind === 'shotgun' ? 120 : 30)) return;
+    const t = AU.ctx.currentTime, fr = far || 0, v = (vol == null ? 1 : vol) * (1 - fr * .55), p = pt || 1, lp = fr > .15 ? 7500 - fr * 6000 : 0, w = .55 + fr * .9;
+    if (kind === 'shotgun') { auNz(t, .02, 'highpass', 3500, 1500, .6, .6 * v, pan, 0, lp); auNz(t, .22, 'lowpass', 2600 * p, 160, .5, .9 * v, pan, w, lp); auOsc(t, 'sine', 95 * p, 32, .34, .95 * v, pan, 0, lp); auNz(t + .03, .9, 'lowpass', 900, 150, .4, .3 * v, pan, w * 1.5, lp); auNz(t + .55, .05, 'highpass', 2800, 2200, .8, .1 * v, pan, w); }
+    else if (kind === 'sniper') { auNz(t, .035, 'highpass', 4500, 2000, .6, 1 * v, pan, 0, lp); auNz(t, .25, 'bandpass', 2200 * p, 300, .7, .6 * v, pan, w, lp); auOsc(t, 'sine', 160 * p, 48, .3, .9 * v, pan, 0, lp); auNz(t + .02, 1.2, 'lowpass', 1400, 120, .4, .3 * v, pan, w * 1.8, lp); auOsc(t + .04, 'triangle', 70, 38, .8, .3 * v, pan, w, lp); }
+    else if (kind === 'rifle') { auNz(t, .018, 'highpass', 3000, 1800, .6, .5 * v, pan, 0, lp); auNz(t, .09, 'bandpass', 2400 * p, 700, 1, .4 * v, pan, w * .6, lp); auOsc(t, 'triangle', 230 * p, 85, .09, .45 * v, pan, 0, lp); auNz(t + .01, .3, 'lowpass', 1500, 220, .5, .14 * v, pan, w, lp); }
+    else { auNz(t, .025, 'highpass', 2800, 1500, .7, .55 * v, pan, 0, lp); auNz(t, .06, 'bandpass', 3000 * p, 800, 1.1, .4 * v, pan, w * .6, lp); auOsc(t, 'triangle', 280 * p, 75, .12, .55 * v, pan, 0, lp); auOsc(t, 'sine', 120 * p, 45, .16, .5 * v, pan, 0, lp); auNz(t + .01, .4, 'lowpass', 1800, 280, .5, .2 * v, pan, w, lp); }
+  },
+  shot(v) { this.gun('rifle', .55 * (v || 1), (Math.random() - .5) * .8, .35, .9 + Math.random() * .2); },
+  cannon() { if (!auOK('cannon', 200)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 110, 34, .55, .95, 0, .8); auNz(t, .7, 'lowpass', 1800, 120, .6, .75, 0, 1); auNz(t, .04, 'highpass', 3000, 1500, .6, .6, 0, 0); auOsc(t + .05, 'triangle', 60, 30, .9, .35, 0, 1); AU.duckUntil = performance.now() + 500; },
+  boom(sz) {
+    if (!auOK('boom', 60)) return; const t = AU.ctx.currentTime, s = Math.min(1.5, .4 + (sz || 6) / 14);
+    auOsc(t, 'sine', 72, 24, 1 * s + .4, .95 * s, 0, .6); auNz(t, 1.1 * s + .3, 'lowpass', 1900, 80, .5, .85 * s, 0, 1.1); auNz(t, .06, 'highpass', 3200, 1800, .6, .55 * s, 0, 0); auOsc(t + .02, 'triangle', 110, 40, .6 * s, .4 * s, 0, .8);
+    for (let i = 0; i < 9; i++) auNz(t + .14 + Math.random() * 1.2 * s, .05 + Math.random() * .08, 'bandpass', 1200 + Math.random() * 3800, 500, 1.2, .12 * s, (Math.random() - .5) * 1.4, .7);
+    AU.duckUntil = performance.now() + 900 * s;
+  },
+  horn() {
+    if (!auOK('horn', 800)) return; const C = AU.ctx, t = C.currentTime;
+    [55, 82.41, 110, 165].forEach((f, i) => { const o = C.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f * .96, t); o.frequency.exponentialRampToValueAtTime(f, t + .9); o.detune.value = (i - 1.5) * 7; const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(220, t); lp.frequency.exponentialRampToValueAtTime(1100, t + 1.2); const g = C.createGain(), a = .16 / (1 + i * .3); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(a, t + .9); g.gain.setValueAtTime(a, t + 1.6); g.gain.exponentialRampToValueAtTime(.0003, t + 3.2); o.connect(lp); lp.connect(g); auOut(g, 0, .9); o.start(t); o.stop(t + 3.3); });
+    AU.duckUntil = performance.now() + 2500;
+  },
+  ui() { if (!auOK('ui', 40)) return; const t = AU.ctx.currentTime; auNz(t, .015, 'highpass', 3500, 3000, .5, .25, 0, 0); auOsc(t, 'sine', 1500, 950, .06, .22, 0, .1); },
+  err() { if (!auOK('err', 120)) return; const t = AU.ctx.currentTime; auOsc(t, 'triangle', 150, 90, .12, .4, 0, .1); auOsc(t + .11, 'triangle', 130, 75, .16, .4, 0, .1); },
+  alarm() { if (!auOK('alarm', 900)) return; const C = AU.ctx, t = C.currentTime, o = C.createOscillator(); o.type = 'sawtooth'; const bp = C.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 1.2; const g = C.createGain(); for (let i = 0; i < 6; i++) o.frequency.setValueAtTime(i % 2 ? 640 : 860, t + i * .2); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16, t + .03); g.gain.setValueAtTime(.16, t + 1); g.gain.exponentialRampToValueAtTime(.0003, t + 1.3); o.connect(bp); bp.connect(g); auOut(g, 0, .5); o.start(t); o.stop(t + 1.4); auOsc(t, 'sine', 90, 55, .6, .5, 0, .5); },
+  flash(pan) { if (!auOK('flash', 150)) return; const C = AU.ctx, t = C.currentTime; auNz(t, .09, 'highpass', 5500, 3000, .5, .9, pan, .4); auOsc(t, 'sine', 120, 50, .2, .5, pan, 0); const o = C.createOscillator(), g = C.createGain(), l = C.createOscillator(), lg = C.createGain(); o.type = 'sine'; o.frequency.value = 6800; l.frequency.value = 7; lg.gain.value = .04; l.connect(lg); lg.connect(g.gain); g.gain.setValueAtTime(.0001, t + .05); g.gain.exponentialRampToValueAtTime(.1, t + .1); g.gain.exponentialRampToValueAtTime(.0003, t + 1.8); o.connect(g); auOut(g, 0, .3); o.start(t); o.stop(t + 1.9); l.start(t); l.stop(t + 1.9); AU.duckUntil = performance.now() + 1500; },
+  throw(pan) { if (!auOK('throw', 80)) return; const t = AU.ctx.currentTime; auNz(t, .2, 'bandpass', 500, 2600, 1.2, .25, pan, .2, 0, .06); auOsc(t, 'sine', 3300, 3000, .06, .16, pan, .3); },
+  clink(pan) { if (!auOK('clink', 60)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 2100, 2000, .07, .18, pan, .4); auOsc(t + .07, 'sine', 2800, 2600, .06, .12, pan, .4); auNz(t, .02, 'highpass', 4000, 3500, .5, .15, pan, .2); },
+  smoke(pan) { if (!auOK('smoke', 200)) return; const t = AU.ctx.currentTime; auNz(t, 1.5, 'bandpass', 4800, 3000, .4, .3, pan, .6, 0, .25); auNz(t, .12, 'lowpass', 900, 200, .5, .3, pan, .3); },
+  door(pan) { if (!auOK('door', 150)) return; const C = AU.ctx, t = C.currentTime, o = C.createOscillator(), bp = C.createBiquadFilter(), g = C.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(85, t); o.frequency.linearRampToValueAtTime(135, t + .38); bp.type = 'bandpass'; bp.frequency.value = 650; bp.Q.value = 5; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.1, t + .05); g.gain.exponentialRampToValueAtTime(.0003, t + .42); o.connect(bp); bp.connect(g); auOut(g, pan, .4); o.start(t); o.stop(t + .45); auOsc(t, 'square', 1100, 1500, .22, .035, pan, .3); auNz(t + .4, .03, 'highpass', 1500, 1200, .6, .3, pan, .3); },
+  step(pan, vol) { if (!auOK('step', 70)) return; const t = AU.ctx.currentTime, v = vol == null ? 1 : vol; auNz(t, .07, 'lowpass', 520, 180, .6, .14 * v, pan, .15); auOsc(t, 'sine', 95, 60, .07, .1 * v, pan, 0); },
+  hit(pan) { if (!auOK('hit', 40)) return; const t = AU.ctx.currentTime; auNz(t, .07, 'lowpass', 700, 250, .6, .4, pan, .2); auOsc(t, 'sine', 150, 70, .09, .35, pan, 0); },
+  kill(pan) { if (!auOK('kill', 60)) return; const t = AU.ctx.currentTime; auNz(t, .14, 'lowpass', 320, 110, .6, .45, pan, .3); auOsc(t, 'sine', 110, 48, .14, .45, pan, .2); },
+  ricochet(pan) { if (!auOK('rico', 70)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 3400, 1100, .15, .1, pan, .4); auNz(t, .05, 'bandpass', 4200, 3000, 1, .12, pan, .3); },
+  hurt() { if (!auOK('hurt', 150)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 85, 38, .22, .7, 0, .2); auNz(t, .15, 'lowpass', 420, 150, .6, .35, 0, .2); AU.duckUntil = performance.now() + 400; },
+  heart() { if (!auOK('heart', 400)) return; const t = AU.ctx.currentTime; auOsc(t, 'sine', 62, 40, .12, .7, 0, .1); auOsc(t + .17, 'sine', 55, 38, .14, .5, 0, .1); },
+  cuff(pan) { if (!auOK('cuff', 80)) return; const t = AU.ctx.currentTime; auNz(t, .02, 'highpass', 3500, 3000, .8, .3, pan, .3); auOsc(t, 'sine', 2600, 2400, .05, .14, pan, .3); auNz(t + .09, .02, 'highpass', 3000, 2800, .8, .3, pan, .3); auOsc(t + .09, 'sine', 3100, 2900, .05, .14, pan, .3); },
+  freed() { if (!auOK('freed', 300)) return; const t = AU.ctx.currentTime; [523.25, 659.25, 783.99].forEach((f, i) => auOsc(t + i * .11, 'sine', f, f, .55, .22, 0, .9)); },
+  med() { if (!auOK('med', 200)) return; const t = AU.ctx.currentTime; [660, 880, 1320].forEach((f, i) => auOsc(t + i * .08, 'sine', f, f, .4, .18, 0, .6)); },
+  win() { if (!AU.ctx || !opts.snd) return; const t = AU.ctx.currentTime; [261.63, 329.63, 392, 523.25].forEach((f, i) => { auOsc(t + i * .13, 'triangle', f, f, 1.4, .2, 0, 1); auOsc(t + i * .13, 'sine', f / 2, f / 2, 1.6, .12, 0, .8); }); auOsc(t, 'sine', 65.4, 65.4, 2, .3, 0, .4); AU.duckUntil = performance.now() + 2000; },
+  lose() { if (!AU.ctx || !opts.snd) return; const t = AU.ctx.currentTime; [220, 174.61, 146.83].forEach((f, i) => auOsc(t + i * .5, 'triangle', f, f * .97, 1.6, .22, 0, 1)); auOsc(t, 'sawtooth', 55, 48, 3, .12, 0, .8, 400); AU.duckUntil = performance.now() + 2800; },
 };
+function auPluck() { if (!AU.ctx || !opts.snd || AU.mode === 'raid') return; const t = AU.ctx.currentTime, n = [110, 130.81, 146.83, 164.81, 196, 220][Math.random() * 6 | 0]; AU.busMus = true; auOsc(t, 'triangle', n * 2, n * 2, 2.2, .1, (Math.random() - .5) * .6, 1.2, 1800, .01); auOsc(t, 'sine', n, n, 2.4, .08, 0, 1); AU.busMus = false; }
+function auFar() { if (!AU.ctx || !opts.snd) return; const r = Math.random(); if (r < .6) sfx.gun(r < .3 ? 'rifle' : 'pistol', .5, (Math.random() - .5) * 1.6, .85, .8 + Math.random() * .3); else { const t = AU.ctx.currentTime, pn = (Math.random() - .5) * 1.4; auOsc(t, 'sine', 60, 26, 1.3, .35, pn, 1.3, 600); auNz(t, 1.2, 'lowpass', 600, 80, .5, .3, pn, 1.4, 700); } }
+function auKick(t, g) { AU.busMus = true; auOsc(t, 'sine', 140, 42, .24, .6 * g, 0, .1); auNz(t, .015, 'lowpass', 900, 300, .5, .25 * g, 0, 0); AU.busMus = false; }
+function auSnare(t, g) { AU.busMus = true; auNz(t, .15, 'bandpass', 1800, 1100, .8, .3 * g, 0, .5); auOsc(t, 'triangle', 210, 120, .1, .2 * g, 0, .2); AU.busMus = false; }
+function auBeat(t, i, g) {
+  if (i % 8 === 0 || (g > .55 && i % 4 === 0)) auKick(t, g);
+  if (i === 4 || i === 12) auSnare(t, g);
+  if (g > .35 && i % 2 === 1) { AU.busMus = true; auNz(t, .03, 'highpass', 8500, 8500, .5, .05 * g, 0, .1); AU.busMus = false; }
+  if (AU.mode === 'map' && (i === 6 || i === 14)) { AU.busMus = true; auOsc(t, 'sine', 100, 55, .32, .38 * g, 0, .5); AU.busMus = false; }
+}
+function auSched() { const C = AU.ctx; if (!C || !opts.snd) return; const T = AU.tgt; if (T.drums < .05) { AU.nextBeat = C.currentTime + .1; return; } const spb = 60 / T.tempo / 2; while (AU.nextBeat < C.currentTime + .25) { auBeat(AU.nextBeat, AU.beat++ % 16, T.drums); AU.nextBeat += spb; } }
+function auLayers() { const C = AU.ctx, T = AU.tgt, n = C.currentTime; AU.pad.gain.setTargetAtTime(T.pad, n, 1.2); AU.tense.gain.setTargetAtTime(T.tense, n, 1); AU.wind.gain.setTargetAtTime(T.wind, n, 1.5); AU.hord.gain.setTargetAtTime(opts.snd ? T.hord : 0, n, .6); AU.eng.gain.setTargetAtTime(opts.snd ? T.eng : 0, n, .3); }
 function updateAmbient() {
-  if (!AU.ctx) return; const mv = units.filter(u => u.moving && !SQL(u.type) && u.type !== 'JD').length;
-  AU.eng.gain.setTargetAtTime(opts.snd ? Math.min(.14, mv * .06) : 0, AU.ctx.currentTime, .3);
-  AU.hord.gain.setTargetAtTime(opts.snd ? Math.min(.22, Math.log10(N + 1) * .036) : 0, AU.ctx.currentTime, .6);
+  if (!AU.ctx) return; auApplyVol(); AU.mode = 'map';
+  const fight = WV.phase === 'spawn' || WV.phase === 'fight', mv = units.filter(u => u.moving && !SQL(u.type) && u.type !== 'JD').length, inten = fight ? Math.min(1, .35 + Math.log10(N + 1) / 6.5) : 0;
+  Object.assign(AU.tgt, { pad: fight ? .5 : .38, tense: fight ? .1 + inten * .12 : 0, wind: .07, drums: fight ? inten : 0, tempo: 82 + inten * 24, hord: Math.min(.22, Math.log10(N + 1) * .036), eng: Math.min(.14, mv * .06) });
+  auLayers(); if (!fight && Math.random() < .12) auPluck(); if (fight && Math.random() < .22) auFar();
+}
+function updateAmbientRaid() {
+  if (!AU.ctx) return; auApplyVol(); AU.mode = 'raid';
+  Object.assign(AU.tgt, { pad: .3, tense: RD.alarm ? .2 : .05, wind: .02, drums: RD.alarm && !RD.over ? .7 : 0, tempo: 108, hord: 0, eng: 0 }); auLayers();
 }
 
 // ---------- Unités ----------
@@ -1674,7 +1771,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 function cycleSpeed() { opts.speed = opts.speed === 1 ? 2 : opts.speed === 2 ? 4 : 1; refreshTop(); }
 function cycleTod() { opts.tod = (opts.tod + 1) % 3; refreshTop(); }
-function toggleSnd() { opts.snd = !opts.snd; refreshTop(); }
+function toggleSnd() { opts.snd = !opts.snd; refreshTop(); auApplyVol(); }
 
 // ---------- Interface ----------
 function refreshTop() {
@@ -2247,7 +2344,7 @@ function enterRaid(raid) {
   for (let i = 0; i < 3; i++) { const l = rooms[R() * rooms.length | 0], p = freeIn(l, 0); if (p) RD.items.push({ x: p[0], y: p[1], k: 'med', got: false }); }
   RD.total = { en: RD.en.length, hs: RD.hs.length };
   RD.cx = RD.judge.x; RD.cy = RD.judge.y - 4; RD.jf = null; RD.jfT = 0;
-  document.body.classList.add('inraid'); RD.active = true; $('rdEnd').style.display = 'none';
+  document.body.classList.add('inraid'); RD.active = true; auSpace(true); $('rdEnd').style.display = 'none';
   setTimeout(() => { if (RD.active && RD.raid === raid) rdMsg('ASTUCE', 'Espace : flash aveuglant · restez près d\'un criminel aveuglé pour l\'arrêter', 4); }, 4500);
   rdMsg(raid.name.toUpperCase(), raid.kind === 'rescue' ? 'Libérez les otages · neutralisez ou arrêtez les criminels' : raid.kind === 'arrest' ? 'Capturez le chef · neutralisez ou arrêtez les criminels' : 'Otages et chef : sécurisez le bâtiment', 4);
   rdUpdateFog(0);
@@ -2284,14 +2381,15 @@ function rdShoot(src, tgt, dmg, acc, kind, wp) {
   RD.pt.push({ k: 'c', x: src.x, y: src.y, vx: -Math.sin(a) * (2 + Math.random() * 2), vy: Math.cos(a) * (2 + Math.random() * 2), t: 0, l: 1.4 });
   if (!hit) for (let i = 0; i < 4; i++) RD.pt.push({ k: 'p', x: ex, y: ey, vx: (Math.random() - .5) * 9, vy: (Math.random() - .5) * 9, t: 0, l: .25 });
   if (RD.pt.length > 220) RD.pt.splice(0, 40); if (RD.tr.length > 90) RD.tr.shift();
-  if (src.k === 'e') sfx.shot(Math.max(.25, 1 - rdSafe(src, RD.judge) / 30)); else { sfx.shot(1.2); nz(.1, 1200, .9, .16, 'bandpass', 380); } if (wp === 'shotgun') nz(.18, 500, .6, .28, 'lowpass', 140);
+  sfx.gun(wp || 'pistol', src.k === 'e' ? .85 : 1.1, rdPanOf(src.x), Math.min(1, rdSafe(src, RD.judge) / 40), src.k === 'e' ? .92 + Math.random() * .2 : 1);
+  if (!hit && Math.random() < .55) sfx.ricochet(rdPanOf(ex));
   src.fl = .07; if (src.k !== 'e') rdNoise(src.x, src.y, 24);
   if (hit) {
-    if (tgt.k === 'e') { tgt.hp -= dmg; tgt.hit = .12; rdSplat(tgt.x, tgt.y, 3, false); if (tgt.st === 'idle' || tgt.st === 'stun') { /* reste */ } if (tgt.st === 'idle') { tgt.st = 'combat'; RD.alarm = true; } if (tgt.hp <= 0) rdKill(tgt, a); }
-    else { const k = [.5, 1, 1.35, 1.8][ACC.diff]; tgt.hp -= dmg * k; rdSplat(tgt.x, tgt.y, 2, false); if (tgt.k === 'j') { RD.hurt = .4; RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 5); sfx.err(); } if (tgt.hp <= 0) rdDown(tgt, a); }
+    if (tgt.k === 'e') { tgt.hp -= dmg; tgt.hit = .12; sfx.hit(rdPanOf(tgt.x)); rdSplat(tgt.x, tgt.y, 3, false); if (tgt.st === 'idle' || tgt.st === 'stun') { /* reste */ } if (tgt.st === 'idle') { tgt.st = 'combat'; RD.alarm = true; } if (tgt.hp <= 0) rdKill(tgt, a); }
+    else { const k = [.5, 1, 1.35, 1.8][ACC.diff]; tgt.hp -= dmg * k; rdSplat(tgt.x, tgt.y, 2, false); if (tgt.k === 'j') { RD.hurt = .4; RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 5); sfx.hurt(); } if (tgt.hp <= 0) rdDown(tgt, a); }
   }
 }
-function rdKill(e, a) { e.st = 'dead'; e.da = a + (Math.random() - .5); RD.kills++; rdSplat(e.x, e.y, 14, true); rdFloat(e.x, e.y - 1, '+20', '#f4c04a'); nz(.25, 300, .8, .3, 'lowpass', 90); RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 3); rdCheck(); }
+function rdKill(e, a) { e.st = 'dead'; e.da = a + (Math.random() - .5); RD.kills++; rdSplat(e.x, e.y, 14, true); rdFloat(e.x, e.y - 1, '+20', '#f4c04a'); sfx.kill(rdPanOf(e.x)); RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 3); rdCheck(); }
 function rdDown(f, a) {
   rdSplat(f.x, f.y, 14, true);
   if (f.k === 'j') { RD.over = 'lose'; rdEnd(); } else { f.dead = true; f.da = a; rdMsg('ADJOINT TOMBÉ', '', 2); }
@@ -2320,7 +2418,7 @@ function rdThrow(u, kind, tx, ty) {
   let ex = u.x, ey = u.y; for (let q = .5; q <= d; q += .3) { const px = u.x + dx / d * q, py = u.y + dy / d * q; if (rdOpaque(M, Math.floor(px), Math.floor(py))) break; ex = px; ey = py; }
   u.inv[kind]--; u.tcd = 1.2; u.a = Math.atan2(dy, dx); rdSqDirty = true;
   RD.pj.push({ k: kind, x0: u.x, y0: u.y, x1: ex, y1: ey, t: 0, dur: .22 + Math.hypot(ex - u.x, ey - u.y) * .022, landed: false, lt: 0 });
-  tone(520, 300, .12, .1, 'square'); return true;
+  sfx.throw(rdPanOf(u.x)); return true;
 }
 function rdThrowSel(kind, x, y) {
   let best = null, bd = 1e9; for (const u of RD.sq) { if (!u.sel || u.hp <= 0 || u.dead || !u.inv[kind] || u.tcd > 0) continue; const d = Math.hypot(u.x - x, u.y - y); if (d < bd) { bd = d; best = u; } }
@@ -2331,10 +2429,10 @@ function rdUseMed(u) {
   if (!u || u.hp <= 0 || u.dead || !u.inv.med || u.tcd > 0) { if (u && !u.inv.med) sfx.err(); return; }
   u.inv.med--; u.tcd = 1.2; rdSqDirty = true; let n = 0;
   for (const v of RD.sq) if (v.hp > 0 && !v.dead && rdSafe(u, v) < 3.6) { v.hp = Math.min(v.maxhp, v.hp + (v === u ? 60 : 45)); rdFloat(v.x, v.y - 1.4, '+SOINS', '#6fcf6a'); n++; }
-  sfx.ui(); tone(660, 990, .25, .1, 'sine');
+  sfx.med();
 }
 function rdBang(p) {
-  const M = RD.M; let n = 0; nz(.5, 3000, .5, .3, 'highpass', 800); tone(1800, 300, .3, .1, 'square');
+  const M = RD.M; let n = 0; sfx.flash(rdPanOf(p.x1));
   for (const e of RD.en) { if (e.st === 'dead' || e.st === 'arrested') continue; const d = Math.hypot(e.x - p.x1, e.y - p.y1); if (d < 9 && (d < 2.5 || rdLos(M, p.x1, p.y1, e.x, e.y))) { e.st = 'stun'; e.stun = 5.5; e.prog = 0; n++; } }
   const j = RD.judge; if (Math.hypot(j.x - p.x1, j.y - p.y1) < 12 && rdLos(M, j.x, j.y, p.x1, p.y1)) RD.flashT = .3;
   RD.pt.push({ k: 's', x: p.x1, y: p.y1, vx: 0, vy: 0, t: 0, l: .5 }); rdNoise(p.x1, p.y1, 26); RD.alarm = true;
@@ -2388,9 +2486,11 @@ function rdUpdate(dt) {
   j.mv = false;
   if (ix || iy) { const l = Math.min(1, Math.hypot(ix, iy)), n = Math.hypot(ix, iy); ix /= n; iy /= n; const sp = j.spd * l; rdMove(M, j, ix * sp * dt, iy * sp * dt, .42); j.mv = true; j.swing = Math.sin(RD.t * 14); j.ma = Math.atan2(iy, ix); j.order = null; RD.pan.x *= 1 - Math.min(1, dt * 3); RD.pan.y *= 1 - Math.min(1, dt * 3); }
   else if (j.order) rdFollowOrder(j, j.spd, dt, false);
+  RD.stT = (RD.stT || 0) - dt; if (j.mv && RD.stT <= 0) { RD.stT = .3; sfx.step(0, .8); }
+  for (const a of RD.allies) { a.stT = (a.stT || 0) - dt; if (a.mv && a.hp > 0 && a.stT <= 0) { a.stT = .36 + Math.random() * .06; sfx.step(rdPanOf(a.x), .4); } }
   // portes
   const acts = rdFriends().concat(RD.en.filter(e => e.st !== 'dead' && e.st !== 'arrested'));
-  for (const d of M.doors) { if (!d.open) { const cx = d.x + (d.v ? .5 : 1), cy = d.y + (d.v ? 1 : .5); for (const a of acts) if (Math.hypot(a.x - cx, a.y - cy) < 2.4) { d.open = true; tone(220, 150, .25, .1, 'sawtooth'); break; } } d.ang += ((d.open ? 1 : 0) - d.ang) * Math.min(1, dt * 7); }
+  for (const d of M.doors) { if (!d.open) { const cx = d.x + (d.v ? .5 : 1), cy = d.y + (d.v ? 1 : .5); for (const a of acts) if (Math.hypot(a.x - cx, a.y - cy) < 2.4) { d.open = true; sfx.door(rdPanOf(cx)); break; } } d.ang += ((d.open ? 1 : 0) - d.ang) * Math.min(1, dt * 7); }
   // tir du juge
   j.flashCd = Math.max(0, j.flashCd - dt); if (j.fl) j.fl -= dt; for (const u of RD.sq) u.tcd = Math.max(0, (u.tcd || 0) - dt);
   const tg = rdAutoFire(j, dt);
@@ -2410,7 +2510,7 @@ function rdUpdate(dt) {
   // criminels
   for (const e of RD.en) {
     if (e.st === 'dead' || e.st === 'arrested') continue; const T = EN[e.t]; e.mv = false; if (e.hit > 0) e.hit -= dt; if (e.fl) e.fl -= dt;
-    if (e.st === 'stun') { e.stun -= dt; const d = rdSafe(j, e); if (d < 1.7) { e.prog += dt; if (e.prog >= 1) { e.st = 'arrested'; RD.arrests++; rdFloat(e.x, e.y - 1, 'ARRÊTÉ +40', '#6fcf6a'); sfx.ui(); rdCheck(); continue; } } else e.prog = Math.max(0, e.prog - dt * 2); if (e.stun <= 0) { e.st = 'combat'; e.prog = 0; } continue; }
+    if (e.st === 'stun') { e.stun -= dt; const d = rdSafe(j, e); if (d < 1.7) { e.prog += dt; if (e.prog >= 1) { e.st = 'arrested'; RD.arrests++; rdFloat(e.x, e.y - 1, 'ARRÊTÉ +40', '#6fcf6a'); sfx.cuff(rdPanOf(e.x)); rdCheck(); continue; } } else e.prog = Math.max(0, e.prog - dt * 2); if (e.stun <= 0) { e.st = 'combat'; e.prog = 0; } continue; }
     // perception
     let seen = null, sd = 1e9;
     for (const f of rdFriends()) { const d = rdSafe(e, f); if (d > 26) continue; let df = Math.atan2(f.y - e.y, f.x - e.x) - e.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; const fov = e.st === 'idle' ? 1.05 : 6.3; if ((d < 4.5 || Math.abs(df) < fov) && rdLos(M, e.x, e.y, f.x, f.y) && d < sd) { sd = d; seen = f; } }
@@ -2431,9 +2531,9 @@ function rdUpdate(dt) {
   for (const h of RD.hs) {
     if (h.st === 'tied') {
       const d = rdSafe(j, h); if (d < 1.9) { h.prog += dt / 1.2; } else h.prog = Math.max(0, h.prog - dt);
-      if (h.prog >= 1) { h.st = 'fleeing'; h.prog = 0; rdFloat(h.x, h.y - 1, 'LIBÉRÉ', '#6fcf6a'); rdMsg('OTAGE LIBÉRÉ', 'Il se dirige vers la sortie', 2); sfx.ui(); }
+      if (h.prog >= 1) { h.st = 'fleeing'; h.prog = 0; rdFloat(h.x, h.y - 1, 'LIBÉRÉ', '#6fcf6a'); rdMsg('OTAGE LIBÉRÉ', 'Il se dirige vers la sortie', 2); sfx.freed(); }
       if (RD.alarm) { let danger = false; for (const e of RD.en) if (e.st !== 'dead' && e.st !== 'arrested' && e.st !== 'stun' && Math.hypot(e.x - h.x, e.y - h.y) < 20) { danger = true; break; } if (danger) h.timer -= dt; }
-      if (h.timer <= 0) { h.st = 'dead'; h.da = Math.random() * 6; rdSplat(h.x, h.y, 16, true); RD.lost++; rdMsg('OTAGE EXÉCUTÉ', 'Trop tard', 3); nz(.3, 400, .8, .45, 'lowpass', 100); RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 6); rdCheck(); }
+      if (h.timer <= 0) { h.st = 'dead'; h.da = Math.random() * 6; rdSplat(h.x, h.y, 16, true); RD.lost++; rdMsg('OTAGE EXÉCUTÉ', 'Trop tard', 3); sfx.gun('pistol', .9, rdPanOf(h.x), .1); sfx.kill(rdPanOf(h.x)); RD.shake = Math.max(RD.shake, ACC.calm ? 0 : 6); rdCheck(); }
     } else if (h.st === 'fleeing') {
       if (!h.f) h.f = bfsField(M, M.exit.x + 1, M.by + M.BH + 1); const dir = rdStepDir(M, h.f, h.x, h.y);
       if (dir) { rdMove(M, h, dir[0] * 6 * dt, dir[1] * 6 * dt, .4); h.a = Math.atan2(dir[1], dir[0]); h.swing = Math.sin(RD.t * 14); }
@@ -2448,7 +2548,7 @@ function rdUpdate(dt) {
   // effets
   for (const t of RD.tr) { t.t -= dt; t.flash -= dt; } RD.tr = RD.tr.filter(t => t.t > 0);
   for (const p of RD.pt) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .96; p.vy *= .96; } RD.pt = RD.pt.filter(p => p.t < p.l);
-  for (const p of RD.pj) { p.t += dt; if (!p.landed && p.t >= p.dur) { p.landed = true; p.lt = 0; if (p.k === 'flash') rdBang(p); } if (p.landed) { p.lt += dt; if (p.k === 'gren' && p.lt >= .9) { rdBoom(p); p.dead = true; } else if (p.k === 'flash') p.dead = true; else if (p.k === 'smoke') { RD.smk.push({ x: p.x1, y: p.y1, t: 0, r: 3.8, life: 11 }); nz(.6, 900, .5, .15, 'lowpass', 300); p.dead = true; } } } RD.pj = RD.pj.filter(p => !p.dead);
+  for (const p of RD.pj) { p.t += dt; if (!p.landed && p.t >= p.dur) { p.landed = true; p.lt = 0; if (p.k === 'gren') sfx.clink(rdPanOf(p.x1)); if (p.k === 'flash') rdBang(p); } if (p.landed) { p.lt += dt; if (p.k === 'gren' && p.lt >= .9) { rdBoom(p); p.dead = true; } else if (p.k === 'flash') p.dead = true; else if (p.k === 'smoke') { RD.smk.push({ x: p.x1, y: p.y1, t: 0, r: 3.8, life: 11 }); sfx.smoke(rdPanOf(p.x1)); p.dead = true; } } } RD.pj = RD.pj.filter(p => !p.dead);
   for (const f of RD.fl) { f.t -= dt; f.y -= dt * .8; } RD.fl = RD.fl.filter(f => f.t > 0);
   for (const m of RD.msgs) m.t -= dt; RD.msgs = RD.msgs.filter(m => m.t > 0);
   RD.shake = Math.max(0, RD.shake - dt * 14); RD.hurt = Math.max(0, RD.hurt - dt); RD.flashT = Math.max(0, RD.flashT - dt);
@@ -2471,7 +2571,7 @@ function rdChase(e, tx, ty, spd, dt) {
 
 // ---------- Fin de raid ----------
 function rdEnd() {
-  RD.ending = true; const j = RD.judge, raid = RD.raid, win = RD.over === 'win';
+  RD.ending = true; const j = RD.judge, raid = RD.raid, win = RD.over === 'win'; if (win) sfx.win(); else sfx.lose();
   const reward = win ? 120 + RD.rescued * 100 + RD.arrests * 40 + RD.kills * 20 + (RD.en.some(e => e.t === 'chief' && (e.st === 'arrested')) ? 100 : 0) - RD.lost * 60 : 0;
   const stars = !win ? 0 : (RD.lost === 0 && RD.arrests >= Math.ceil(RD.total.en / 3) ? 3 : RD.lost === 0 ? 2 : 1);
   RD.result = { win, reward: Math.max(win ? 60 : 0, reward), stars };
@@ -2481,7 +2581,7 @@ function rdEnd() {
   $('rdEnd').style.display = 'flex'; $('rdEndB').textContent = 'RETOUR AU FORT';
 }
 function exitRaid(quit) {
-  const r = RD.result; RD.active = false; document.body.classList.remove('inraid'); $('rdEnd').style.display = 'none'; RD.M = null; RD.stat = null; RD.blood = null;
+  const r = RD.result; RD.active = false; auSpace(false); AU.tgt.drums = 0; document.body.classList.remove('inraid'); $('rdEnd').style.display = 'none'; RD.M = null; RD.stat = null; RD.blood = null;
   const raid = RD.raid;
   const jd = units.find(u => u.type === 'JD');
   if (quit || !r) { raid.tries++; banner2('Raid abandonné'); return; }
@@ -2509,6 +2609,7 @@ function rdKey(k, e) {
 // sélection, ordres, tactile
 let rdSqDirty = true;
 const rdZ = () => RD.zoom || 1;
+const rdPanOf = x => Math.max(-1, Math.min(1, (rdSX(x) - rdW / 2) / (rdW / 2)));
 const rdSX = x => (RD.ox + x * TS - rdW / 2) * rdZ() + rdW / 2, rdSY = y => (RD.oy + y * TS - rdH / 2) * rdZ() + rdH / 2;
 const rdTile = (px, py) => [((px - rdW / 2) / rdZ() + rdW / 2 - RD.ox) / TS, ((py - rdH / 2) / rdZ() + rdH / 2 - RD.oy) / TS];
 const rdZoomT = c => { const z = rdZ(); c.setTransform(rdDpr * z, 0, 0, rdDpr * z, rdDpr * rdW / 2 * (1 - z), rdDpr * rdH / 2 * (1 - z)); };
@@ -2697,6 +2798,8 @@ function rdHud(c, t) {
   if (rdStick) { c.strokeStyle = 'rgba(255,255,255,.4)'; c.lineWidth = 2; c.beginPath(); c.arc(rdStick.x0, rdStick.y0, 45, 0, 6.283); c.stroke(); c.fillStyle = 'rgba(232,131,58,.6)'; c.beginPath(); c.arc(rdStick.x0 + clamp1((rdStick.x - rdStick.x0) / 45) * 45, rdStick.y0 + clamp1((rdStick.y - rdStick.y0) / 45) * 45, 20, 0, 6.283); c.fill(); }
 }
 function rdFrame(dtReal, t) {
+  RD.audT = (RD.audT || 0) - dtReal; if (RD.audT <= 0) { RD.audT = .4; updateAmbientRaid(); }
+  if (!RD.over && RD.judge && RD.judge.hp / RD.judge.maxhp < .3 && !RD.paused) { RD.hbT = (RD.hbT || 0) - dtReal; if (RD.hbT <= 0) { RD.hbT = .85; sfx.heart(); } }
   if (!RD.paused && !RD.ending) rdUpdate(Math.min(dtReal, .05)); else if (RD.ending) { RD.t += 0; }
   rdRender(t);
 }
@@ -2834,13 +2937,15 @@ function frame(now) {
 function applyAcc() {
   for (const id of ['top', 'bottom', 'tbar']) $(id).style.zoom = ACC.ui;
   document.body.classList.toggle('hc', ACC.hc);
-  $('accUi').value = String(ACC.ui); $('accDiff').value = String(ACC.diff); $('accCalm').checked = ACC.calm; $('accHc').checked = ACC.hc;
+  $('accUi').value = String(ACC.ui); $('accDiff').value = String(ACC.diff); $('accCalm').checked = ACC.calm; $('accHc').checked = ACC.hc; $('accSfx').value = String(ACC.sfx); $('accMus').value = String(ACC.mus); auApplyVol();
   try { localStorage.setItem('ebbtideAcc', JSON.stringify(ACC)); } catch (e) { }
 }
 $('accUi').onchange = () => { ACC.ui = parseFloat($('accUi').value); applyAcc(); };
 $('accDiff').onchange = () => { ACC.diff = parseInt($('accDiff').value, 10); applyAcc(); };
 $('accCalm').onchange = () => { ACC.calm = $('accCalm').checked; applyAcc(); };
 $('accHc').onchange = () => { ACC.hc = $('accHc').checked; applyAcc(); };
+$('accSfx').onchange = () => { ACC.sfx = parseFloat($('accSfx').value); applyAcc(); sfx.ui(); };
+$('accMus').onchange = () => { ACC.mus = parseFloat($('accMus').value); applyAcc(); };
 const openAcc = () => { $('acc').style.display = 'flex'; $('accClose').focus(); };
 $('bHelp').onclick = () => { $('ohelp').style.display = 'flex'; }; $('ohelpOk').onclick = () => { $('ohelp').style.display = 'none'; };
 $('bAcc').onclick = openAcc; $('bAcc2').onclick = openAcc; $('accClose').onclick = () => { $('acc').style.display = 'none'; };
