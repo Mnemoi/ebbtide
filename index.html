@@ -182,6 +182,7 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
 .touch #rdSq{left:max(4px,env(safe-area-inset-left));bottom:max(4px,env(safe-area-inset-bottom))}
 .touch #rdFlash{right:max(12px,env(safe-area-inset-right))}.touch #rdAct{right:max(88px,calc(env(safe-area-inset-right) + 76px))}
 .touch #rdQuit{right:max(12px,env(safe-area-inset-right))}.touch #rdHelpB{right:max(96px,calc(env(safe-area-inset-right) + 84px))}
+#rdCenter{right:182px;top:10px;padding:7px 12px;background:rgba(20,22,27,.9);border:1px solid var(--ln);font-size:11px}.touch #rdCenter{right:max(176px,calc(env(safe-area-inset-right) + 164px));top:6px;padding:6px 9px}
 #vig{position:fixed;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,.38) 100%)}
 .inraid #vig{display:none}
 #gl{filter:contrast(1.14) saturate(1.0) brightness(.96)}
@@ -228,7 +229,7 @@ body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-
 <tr><td>Bord de l'écran · C · molette</td><td>faire défiler la vue · recentrer sur le juge · zoom ; Z Q S D déplace le juge</td></tr>
 <tr><td>Entrée · X</td><td>entrer dans un bâtiment marqué (raid)</td></tr>
 <tr><td>Échap · P · M · V · N</td><td>annuler/pause · pause · son · vitesse · jour/nuit</td></tr>
-<tr><td>Tactile</td><td>toucher une unité = la choisir · toucher le sol = la déplacer · pouce gauche = bouger le juge</td></tr>
+<tr><td>Tactile</td><td>toucher une unité = la choisir · toucher le sol = la déplacer · pouce gauche = bouger le juge · pincer = zoom · deux doigts = faire défiler la vue · bouton Centrer</td></tr>
 </table><button class="big" id="ohelpOk">FERMER</button></div></div>
 <div id="alertb"></div>
 <div id="hint"></div>
@@ -1560,8 +1561,11 @@ const IS_TOUCH = ('ontouchstart' in window) || /[?&]touch=1/.test(location.searc
 if (IS_TOUCH) document.body.classList.add('touch');
 let touchIx = 0, touchIz = 0, stick = null, tapT = null, padIx = 0, padIz = 0; const padPrev = {};
 const clamp1 = v => Math.max(-1, Math.min(1, v));
+let gest = null;
+const g2 = e => { const a = e.touches[0], b = e.touches[1]; return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1, x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; };
 fxc.addEventListener('touchstart', e => {
   e.preventDefault(); auInit(); if (AU.ctx && AU.ctx.state === 'suspended') AU.ctx.resume();
+  if (e.touches.length >= 2) { stick = null; touchIx = 0; touchIz = 0; tapT = null; const q = g2(e); gest = { d0: q.d, dist0: cam.dist, x: q.x, y: q.y }; return; }
   for (const t of e.changedTouches) {
     if (!stick && t.clientX < W2 * .55 && !pickUnit(t.clientX, t.clientY)) stick = { id: t.identifier, x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY, t0: performance.now(), moved: false };
     else if (!tapT) tapT = { id: t.identifier, x0: t.clientX, y0: t.clientY, t: performance.now(), moved: false };
@@ -1569,6 +1573,7 @@ fxc.addEventListener('touchstart', e => {
 }, { passive: false });
 fxc.addEventListener('touchmove', e => {
   e.preventDefault();
+  if (gest && e.touches.length >= 2) { const q = g2(e), wpp = 2 * cam.dist * Math.tan(cam.fov / 2) / H2, dx = q.x - gest.x, dy = q.y - gest.y, cs = Math.cos(cam.yaw), sn = Math.sin(cam.yaw), up = wpp / Math.max(.35, Math.sin(cam.pitch)); cam.dist = Math.max(30, Math.min(1800, gest.dist0 * gest.d0 / q.d)); cam.tx += -cs * dx * wpp - sn * dy * up; cam.tz += sn * dx * wpp - cs * dy * up; gest.x = q.x; gest.y = q.y; camFollow = false; return; }
   for (const t of e.changedTouches) {
     if (stick && t.identifier === stick.id) { stick.x = t.clientX; stick.y = t.clientY; if (Math.hypot(stick.x - stick.x0, stick.y - stick.y0) > 12) stick.moved = true; if (stick.moved) { touchIx = clamp1((stick.x - stick.x0) / 45); touchIz = clamp1(-(stick.y - stick.y0) / 45); } }
     else if (tapT && t.identifier === tapT.id && Math.hypot(t.clientX - tapT.x0, t.clientY - tapT.y0) > 14) tapT.moved = true;
@@ -1577,6 +1582,7 @@ fxc.addEventListener('touchmove', e => {
 function tapAt(px, py) { const pu = pickUnit(px, py); if (pu) selectSet([pu], false); else { const g = pickGround(px, py); if (g) groundClick(g); } }
 function touchEnd(e, cancel) {
   e.preventDefault();
+  if (gest) { if (e.touches.length < 2) gest = null; return; }
   for (const t of e.changedTouches) {
     if (stick && t.identifier === stick.id) { const st = stick; stick = null; touchIx = 0; touchIz = 0; if (!cancel && !st.moved && performance.now() - st.t0 < 300 && !G_.over) tapAt(st.x0, st.y0); }
     else if (tapT && t.identifier === tapT.id) {
@@ -1591,7 +1597,7 @@ fxc.addEventListener('touchend', e => touchEnd(e, false), { passive: false });
 fxc.addEventListener('touchcancel', e => touchEnd(e, true), { passive: false });
 {
   const tb = document.createElement('div'); tb.id = 'tbar'; document.body.appendChild(tb);
-  [['Équipe', () => document.body.classList.toggle('team')], ['Verdict', () => doJustice(), 'v'], ['Mortier<br>40', () => autoMortar()], ['Coéq.<br>120', () => produce('CQ')], ['Char<br>260', () => produce('TK')], ['Bulldo.<br>150', () => produce('DZ')], ['Flammes<br>140', () => produce('LF')], ['Frappe<br>110', () => arm('strike')], ['Réparer<br>60', () => arm('repair')]].forEach(([n, f, c]) => { const b = document.createElement('button'); b.innerHTML = n; if (c) b.className = c; b.onclick = f; tb.appendChild(b); });
+  [['Équipe', () => document.body.classList.toggle('team')], ['Centrer', () => { camFollow = true; const j = units.find(u => u.type === 'JD'); if (j) { cam.tx = j.x; cam.tz = j.z; } }], ['Verdict', () => doJustice(), 'v'], ['Mortier<br>40', () => autoMortar()], ['Coéq.<br>120', () => produce('CQ')], ['Char<br>260', () => produce('TK')], ['Bulldo.<br>150', () => produce('DZ')], ['Flammes<br>140', () => produce('LF')], ['Frappe<br>110', () => arm('strike')], ['Réparer<br>60', () => arm('repair')]].forEach(([n, f, c]) => { const b = document.createElement('button'); b.innerHTML = n; if (c) b.className = c; b.onclick = f; tb.appendChild(b); });
 }
 let mouseG = null, mx = 0, my = 0, boxSel = null, drag = null;
 const keys = {};
@@ -2224,7 +2230,7 @@ function enterRaid(raid) {
   const R = M.R, I = M.I;
   // acteurs
   const ex = M.exit.x + 1, ey = M.by + M.BH;
-  rdMakeSquad(ex, ey); RD.armed = null; RD.pj = []; RD.smk = []; RD.pan = { x: 0, y: 0 }; RD.box = null; RD.mouse = null; rdBuildSq();
+  rdMakeSquad(ex, ey); RD.zoom = 1; RD.armed = null; RD.pj = []; RD.smk = []; RD.pan = { x: 0, y: 0 }; RD.box = null; RD.mouse = null; rdBuildSq();
   RD.en = []; RD.hs = [];
   const fd = bfsField(M, ex, ey - 2);
   const freeIn = (l, minDist) => { for (let k = 0; k < 80; k++) { const x = l.x + 2 + (R() * (l.w - 4) | 0), y = l.y + 2 + (R() * (l.h - 4) | 0); if (rdPass(M, x, y) && !M.solid[I(x, y)] && Math.hypot(x - ex, y - ey) > (minDist || 0)) return [x + .5, y + .5]; } return null; };
@@ -2453,7 +2459,7 @@ function rdUpdate(dt) {
     if (RD.mouse && RD.mouse.on && !IS_TOUCH && !RD.box) { const m = RD.mouse, e = 26; if (m.x < e) RD.pan.x -= 24 * dt; else if (m.x > rdW - e) RD.pan.x += 24 * dt; if (m.y < e) RD.pan.y -= 24 * dt; else if (m.y > rdH - e) RD.pan.y += 24 * dt; }
     RD.pan.x = Math.max(-28, Math.min(28, RD.pan.x)); RD.pan.y = Math.max(-18, Math.min(18, RD.pan.y));
     const look = (grp.length === 1 && grp[0].mv) ? 2.2 : 0; RD.cx += (cx + RD.pan.x + Math.cos(grp[0].a) * look - RD.cx) * f; RD.cy += (cy + RD.pan.y + Math.sin(grp[0].a) * look - RD.cy) * f;
-    const vw = rdW / TS, vh = rdH / TS; RD.cx = Math.max(vw / 2 - 2, Math.min(M.GW - vw / 2 + 2, RD.cx)); RD.cy = Math.max(vh / 2 - 2, Math.min(M.GH - vh / 2 + 2, RD.cy)); }
+    const vw = rdW / (TS * rdZ()), vh = rdH / (TS * rdZ()); RD.cx = Math.max(vw / 2 - 2, Math.min(M.GW - vw / 2 + 2, RD.cx)); RD.cy = Math.max(vh / 2 - 2, Math.min(M.GH - vh / 2 + 2, RD.cy)); }
   rdUpdateFog(dt);
 }
 function rdChase(e, tx, ty, spd, dt) {
@@ -2494,7 +2500,7 @@ function rdKey(k, e) {
   if (k === '1' || k === '2' || k === '3' || k === '4') { const i = +k - 1; if (alive(i)) rdSelect([RD.sq[i]], e.shiftKey); }
   else if (k === '5' || k === '0') rdSelect(RD.sq.filter((u, i) => alive(i)), false);
   else if (k === 'tab') { e.preventDefault(); const cur = RD.sq.findIndex(u => u.sel); for (let n = 1; n <= RD.sq.length; n++) { const i = (cur + n + RD.sq.length) % RD.sq.length; if (alive(i)) { rdSelect([RD.sq[i]], false); break; } } }
-  else if (k === 'g') rdArm('gren'); else if (k === 'f') rdArm('flash'); else if (k === 'v') rdArm('smoke'); else if (k === 'b') rdArm('med'); else if (k === 'c') RD.pan = { x: 0, y: 0 };
+  else if (k === 'g') rdArm('gren'); else if (k === 'f') rdArm('flash'); else if (k === 'v') rdArm('smoke'); else if (k === 'b') rdArm('med'); else if (k === 'c') { RD.pan = { x: 0, y: 0 }; RD.zoom = 1; } else if (k === '+' || k === '=') RD.zoom = Math.min(2.2, rdZ() * 1.15); else if (k === '-' || k === '6') RD.zoom = Math.max(.55, rdZ() / 1.15);
   else if (k === 'h') $('rdHelp').style.display = $('rdHelp').style.display === 'flex' ? 'none' : 'flex';
   else if ((e.ctrlKey || e.metaKey) && k === 'a') { e.preventDefault(); rdSelect(RD.sq.filter(u => u.hp > 0 && !u.dead), false); }
   else if (k === 'backspace' || k === 'delete') { for (const u of RD.sq) if (u.sel) { u.order = null; u.queue = []; } rdSqDirty = true; }
@@ -2502,8 +2508,11 @@ function rdKey(k, e) {
 }
 // sélection, ordres, tactile
 let rdSqDirty = true;
-const rdTile = (px, py) => [(px - RD.ox) / TS, (py - RD.oy) / TS];
-function rdPickUnit(px, py) { let best = null, bd = TS * 1.2; for (const u of RD.sq) { if (u.hp <= 0 || u.dead) continue; const d = Math.hypot(RD.ox + u.x * TS - px, RD.oy + u.y * TS - py); if (d < bd) { bd = d; best = u; } } return best; }
+const rdZ = () => RD.zoom || 1;
+const rdSX = x => (RD.ox + x * TS - rdW / 2) * rdZ() + rdW / 2, rdSY = y => (RD.oy + y * TS - rdH / 2) * rdZ() + rdH / 2;
+const rdTile = (px, py) => [((px - rdW / 2) / rdZ() + rdW / 2 - RD.ox) / TS, ((py - rdH / 2) / rdZ() + rdH / 2 - RD.oy) / TS];
+const rdZoomT = c => { const z = rdZ(); c.setTransform(rdDpr * z, 0, 0, rdDpr * z, rdDpr * rdW / 2 * (1 - z), rdDpr * rdH / 2 * (1 - z)); };
+function rdPickUnit(px, py) { let best = null, bd = TS * 1.2 * rdZ(); for (const u of RD.sq) { if (u.hp <= 0 || u.dead) continue; const d = Math.hypot(rdSX(u.x) - px, rdSY(u.y) - py); if (d < bd) { bd = d; best = u; } } return best; }
 function rdSelect(list, add) { if (!add) RD.sq.forEach(u => u.sel = false); list.forEach(u => u.sel = true); RD.armed = null; rdSqDirty = true; }
 function rdArm(kind) { if (!RD.sq.some(u => u.sel && u.hp > 0 && !u.dead)) rdSelect([RD.judge], false); if (kind === 'med') { const u = RD.sq.filter(v => v.sel && v.hp > 0 && !v.dead && v.inv.med).sort((a, b) => a.hp / a.maxhp - b.hp / b.maxhp)[0] || RD.sq.find(v => v.hp > 0 && !v.dead && v.inv.med); if (u) rdUseMed(u); else sfx.err(); return; } RD.armed = RD.armed === kind ? null : kind; rdSqDirty = true; }
 function rdCommand(px, py, add) {
@@ -2526,14 +2535,16 @@ cvI.addEventListener('mousemove', e => { RD.mouse = { x: e.clientX, y: e.clientY
 cvI.addEventListener('mouseleave', () => { if (RD.mouse) RD.mouse.on = false; });
 addEventListener('mouseup', e => {
   if (!rdM.down) return; rdM.down = false; if (!RD.active) return;
-  if (rdM.moved && RD.box) { const b = RD.box, a = Math.min(b.x0, b.x1), c = Math.max(b.x0, b.x1), d = Math.min(b.y0, b.y1), f = Math.max(b.y0, b.y1); const list = RD.sq.filter(u => { if (u.hp <= 0 || u.dead) return false; const x = RD.ox + u.x * TS, y = RD.oy + u.y * TS; return x >= a && x <= c && y >= d && y <= f; }); if (list.length) rdSelect(list, e.shiftKey); RD.box = null; }
+  if (rdM.moved && RD.box) { const b = RD.box, a = Math.min(b.x0, b.x1), c = Math.max(b.x0, b.x1), d = Math.min(b.y0, b.y1), f = Math.max(b.y0, b.y1); const list = RD.sq.filter(u => { if (u.hp <= 0 || u.dead) return false; const x = rdSX(u.x), y = rdSY(u.y); return x >= a && x <= c && y >= d && y <= f; }); if (list.length) rdSelect(list, e.shiftKey); RD.box = null; }
   else if (e.target === cvI) rdTapAt(e.clientX, e.clientY, e.shiftKey);
 });
 cvI.addEventListener('contextmenu', e => { e.preventDefault(); if (!RD.active) return; if (RD.armed) { RD.armed = null; rdSqDirty = true; } else rdCommand(e.clientX, e.clientY, e.shiftKey); });
-let rdTap = null;
-cvI.addEventListener('touchstart', e => { e.preventDefault(); auInit(); for (const t of e.changedTouches) { const onU = rdPickUnit(t.clientX, t.clientY); if (!rdStick && !onU && t.clientX < rdW * .5) rdStick = { id: t.identifier, x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY, t0: performance.now(), moved: false }; else if (!rdTap) rdTap = { id: t.identifier, x: t.clientX, y: t.clientY, t0: performance.now() }; } }, { passive: false });
-cvI.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) if (rdStick && t.identifier === rdStick.id) { rdStick.x = t.clientX; rdStick.y = t.clientY; if (Math.hypot(t.clientX - rdStick.x0, t.clientY - rdStick.y0) > 12) rdStick.moved = true; if (rdStick.moved) { rdIx = clamp1((rdStick.x - rdStick.x0) / 45); rdIy = clamp1((rdStick.y - rdStick.y0) / 45); } } }, { passive: false });
-const rdTEnd = e => { e.preventDefault(); for (const t of e.changedTouches) { if (rdStick && t.identifier === rdStick.id) { const st = rdStick; rdStick = null; rdIx = 0; rdIy = 0; if (!st.moved && performance.now() - st.t0 < 300 && e.type === 'touchend') rdTapAt(st.x0, st.y0, false); } else if (rdTap && t.identifier === rdTap.id) { const tp = rdTap; rdTap = null; if (performance.now() - tp.t0 < 400 && e.type === 'touchend') rdTapAt(tp.x, tp.y, false); } } };
+let rdTap = null, rdGest = null;
+const rdG2 = e => { const a = e.touches[0], b = e.touches[1]; return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1, x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; };
+cvI.addEventListener('wheel', e => { e.preventDefault(); if (RD.active) RD.zoom = Math.max(.55, Math.min(2.2, rdZ() * Math.pow(1.0012, -e.deltaY))); }, { passive: false });
+cvI.addEventListener('touchstart', e => { e.preventDefault(); auInit(); if (e.touches.length >= 2) { rdStick = null; rdIx = 0; rdIy = 0; rdTap = null; const q = rdG2(e); rdGest = { d0: q.d, z0: rdZ(), x: q.x, y: q.y }; return; } for (const t of e.changedTouches) { const onU = rdPickUnit(t.clientX, t.clientY); if (!rdStick && !onU && t.clientX < rdW * .5) rdStick = { id: t.identifier, x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY, t0: performance.now(), moved: false }; else if (!rdTap) rdTap = { id: t.identifier, x: t.clientX, y: t.clientY, t0: performance.now() }; } }, { passive: false });
+cvI.addEventListener('touchmove', e => { e.preventDefault(); if (rdGest && e.touches.length >= 2) { const q = rdG2(e); RD.zoom = Math.max(.55, Math.min(2.2, rdGest.z0 * q.d / rdGest.d0)); RD.pan.x -= (q.x - rdGest.x) / (TS * rdZ()); RD.pan.y -= (q.y - rdGest.y) / (TS * rdZ()); rdGest.x = q.x; rdGest.y = q.y; return; } for (const t of e.changedTouches) if (rdStick && t.identifier === rdStick.id) { rdStick.x = t.clientX; rdStick.y = t.clientY; if (Math.hypot(t.clientX - rdStick.x0, t.clientY - rdStick.y0) > 12) rdStick.moved = true; if (rdStick.moved) { rdIx = clamp1((rdStick.x - rdStick.x0) / 45); rdIy = clamp1((rdStick.y - rdStick.y0) / 45); } } }, { passive: false });
+const rdTEnd = e => { e.preventDefault(); if (rdGest) { if (e.touches.length < 2) rdGest = null; return; } for (const t of e.changedTouches) { if (rdStick && t.identifier === rdStick.id) { const st = rdStick; rdStick = null; rdIx = 0; rdIy = 0; if (!st.moved && performance.now() - st.t0 < 300 && e.type === 'touchend') rdTapAt(st.x0, st.y0, false); } else if (rdTap && t.identifier === rdTap.id) { const tp = rdTap; rdTap = null; if (performance.now() - tp.t0 < 400 && e.type === 'touchend') rdTapAt(tp.x, tp.y, false); } } };
 cvI.addEventListener('touchend', rdTEnd, { passive: false }); cvI.addEventListener('touchcancel', rdTEnd, { passive: false });
 
 // cartes de l'équipe (DOM)
@@ -2571,7 +2582,7 @@ function rdRender(t) {
   c.setTransform(rdDpr, 0, 0, rdDpr, 0, 0);
   const sh = RD.shake; const offx = rdW / 2 - RD.cx * TS + (sh ? (Math.random() - .5) * sh : 0), offy = rdH / 2 - RD.cy * TS + (sh ? (Math.random() - .5) * sh : 0);
   RD.ox = rdW / 2 - RD.cx * TS; RD.oy = rdH / 2 - RD.cy * TS;
-  c.fillStyle = '#0b1626'; c.fillRect(0, 0, rdW, rdH);
+  c.fillStyle = '#0b1626'; c.fillRect(0, 0, rdW, rdH); rdZoomT(c);
   c.drawImage(RD.stat, offx, offy); c.drawImage(RD.blood, offx, offy);
   const sx = x => offx + x * TS, sy = y => offy + y * TS;
   // trousses
@@ -2608,11 +2619,11 @@ function rdRender(t) {
   { const p = RD.poly, N = p.length / 2; c.save(); c.beginPath(); c.moveTo(sx(j.x), sy(j.y)); for (let i = 0; i < N; i++) { const a = i / N * 6.2832; let df = a - j.a; while (df > 3.1416) df -= 6.2832; while (df < -3.1416) df += 6.2832; if (Math.abs(df) < .95) c.lineTo(sx(p[i * 2]), sy(p[i * 2 + 1])); } c.closePath(); const g = c.createRadialGradient(sx(j.x), sy(j.y), 0, sx(j.x), sy(j.y), TS * 22); g.addColorStop(0, 'rgba(255,225,160,.28)'); g.addColorStop(1, 'rgba(255,225,160,0)'); c.fillStyle = g; c.fill(); c.restore(); }
   // brouillard de guerre
   const f = RD.fogc; f.setTransform(1, 0, 0, 1, 0, 0); f.globalCompositeOperation = 'source-over'; f.clearRect(0, 0, RD.fog.width, RD.fog.height); f.fillStyle = 'rgba(5,18,34,.9)'; f.fillRect(0, 0, RD.fog.width, RD.fog.height);
-  f.globalCompositeOperation = 'destination-out'; f.setTransform(rdDpr, 0, 0, rdDpr, 0, 0);
+  f.globalCompositeOperation = 'destination-out'; rdZoomT(f);
   f.globalAlpha = .52; f.drawImage(RD.mem, offx, offy, RD.mem.width * 4, RD.mem.height * 4); f.globalAlpha = 1;
   const polyFill = (p, aStep) => { f.beginPath(); for (let i = 0; i < p.length; i += 2) { const x = sx(p[i]), y = sy(p[i + 1]); i ? f.lineTo(x, y) : f.moveTo(x, y); } f.closePath(); f.fill(); };
   f.fillStyle = '#fff'; polyFill(RD.poly); for (const p of RD.polys) polyFill(p);
-  c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(RD.fog, 0, 0); c.setTransform(rdDpr, 0, 0, rdDpr, 0, 0);
+  c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(RD.fog, 0, 0); rdZoomT(c);
   // traces de balles
   c.globalCompositeOperation = 'lighter';
   for (const t2 of RD.tr) { const al = Math.max(0, t2.t / .09); c.strokeStyle = `rgba(255,${200 + al * 40 | 0},120,${al * .9})`; c.lineWidth = 1.6; c.beginPath(); c.moveTo(sx(t2.x0), sy(t2.y0)); c.lineTo(sx(t2.x1), sy(t2.y1)); c.stroke(); if (t2.flash > 0) { const g = c.createRadialGradient(sx(t2.x0), sy(t2.y0), 0, sx(t2.x0), sy(t2.y0), TS * 3); g.addColorStop(0, 'rgba(255,220,140,.8)'); g.addColorStop(1, 'rgba(255,160,60,0)'); c.fillStyle = g; c.fillRect(sx(t2.x0) - TS * 3, sy(t2.y0) - TS * 3, TS * 6, TS * 6); } }
@@ -2623,14 +2634,15 @@ function rdRender(t) {
     c.fillStyle = p.k === 'flash' ? '#f2f2f2' : p.k === 'smoke' ? '#8a929a' : '#4a5a38'; c.strokeStyle = '#111'; c.lineWidth = 1.2; c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill(); c.stroke();
     if (p.landed && p.k === 'gren') { const bl = Math.sin(p.lt * 22) > 0; c.fillStyle = bl ? '#ff3b2a' : '#552'; c.beginPath(); c.arc(x, y, 3, 0, 6.283); c.fill(); c.strokeStyle = 'rgba(255,80,50,.5)'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, TS * 5.5 * Math.min(1, p.lt / .9), 0, 6.283); c.stroke(); }
   }
+  const zz = rdZ(), mxz = RD.mouse ? (RD.mouse.x - rdW / 2) / zz + rdW / 2 : 0, myz = RD.mouse ? (RD.mouse.y - rdH / 2) / zz + rdH / 2 : 0;
   if (RD.armed && RD.mouse && RD.mouse.on) {
     const src = RD.sq.find(u => u.sel && u.hp > 0 && !u.dead && u.inv[RD.armed] && u.tcd <= 0) || RD.sq.find(u => u.sel); const R = RD.armed === 'flash' ? 9 : RD.armed === 'smoke' ? 3.8 : 5.5;
     if (src) { c.strokeStyle = 'rgba(232,131,58,.3)'; c.lineWidth = 1.5; c.setLineDash([4, 6]); c.beginPath(); c.arc(sx(src.x), sy(src.y), TS * 16, 0, 6.283); c.stroke(); c.setLineDash([]); }
-    c.strokeStyle = RD.armed === 'flash' ? '#9ad0ff' : '#ff8a4a'; c.fillStyle = RD.armed === 'flash' ? 'rgba(154,208,255,.1)' : 'rgba(255,120,60,.12)'; c.lineWidth = 2; c.beginPath(); c.arc(RD.mouse.x, RD.mouse.y, TS * R, 0, 6.283); c.fill(); c.stroke();
-    c.beginPath(); c.moveTo(RD.mouse.x - 10, RD.mouse.y); c.lineTo(RD.mouse.x + 10, RD.mouse.y); c.moveTo(RD.mouse.x, RD.mouse.y - 10); c.lineTo(RD.mouse.x, RD.mouse.y + 10); c.stroke();
-    c.fillStyle = '#fff'; c.font = '700 12px system-ui'; c.textAlign = 'center'; c.fillText(ITEMS[RD.armed].n.toUpperCase() + ' · clic pour lancer · Échap annule', RD.mouse.x, RD.mouse.y - TS * R - 8);
+    c.strokeStyle = RD.armed === 'flash' ? '#9ad0ff' : '#ff8a4a'; c.fillStyle = RD.armed === 'flash' ? 'rgba(154,208,255,.1)' : 'rgba(255,120,60,.12)'; c.lineWidth = 2; c.beginPath(); c.arc(mxz, myz, TS * R, 0, 6.283); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(mxz - 10, myz); c.lineTo(mxz + 10, myz); c.moveTo(mxz, myz - 10); c.lineTo(mxz, myz + 10); c.stroke();
+    c.fillStyle = '#fff'; c.font = '700 12px system-ui'; c.textAlign = 'center'; c.fillText(ITEMS[RD.armed].n.toUpperCase() + ' · clic pour lancer · Échap annule', mxz, myz - TS * R - 8);
   }
-  if (RD.box) { const b = RD.box; c.fillStyle = 'rgba(111,207,106,.12)'; c.strokeStyle = '#6fcf6a'; c.lineWidth = 1; c.fillRect(Math.min(b.x0, b.x1), Math.min(b.y0, b.y1), Math.abs(b.x1 - b.x0), Math.abs(b.y1 - b.y0)); c.strokeRect(Math.min(b.x0, b.x1) + .5, Math.min(b.y0, b.y1) + .5, Math.abs(b.x1 - b.x0), Math.abs(b.y1 - b.y0)); }
+  if (RD.box) { const b = { x0: (RD.box.x0 - rdW / 2) / zz + rdW / 2, x1: (RD.box.x1 - rdW / 2) / zz + rdW / 2, y0: (RD.box.y0 - rdH / 2) / zz + rdH / 2, y1: (RD.box.y1 - rdH / 2) / zz + rdH / 2 }; c.fillStyle = 'rgba(111,207,106,.12)'; c.strokeStyle = '#6fcf6a'; c.lineWidth = 1; c.fillRect(Math.min(b.x0, b.x1), Math.min(b.y0, b.y1), Math.abs(b.x1 - b.x0), Math.abs(b.y1 - b.y0)); c.strokeRect(Math.min(b.x0, b.x1) + .5, Math.min(b.y0, b.y1) + .5, Math.abs(b.x1 - b.x0), Math.abs(b.y1 - b.y0)); }
   cvI.style.cursor = RD.armed ? 'crosshair' : 'default';
   // indications au-dessus des acteurs
   c.textAlign = 'center';
@@ -2650,6 +2662,7 @@ function rdRender(t) {
   }
   for (const u of RD.sq) { if (u.hp <= 0 || u.dead) continue; const x = sx(u.x), y = sy(u.y) - TS * 1.45, R = ROLES[u.role]; c.font = '800 10px system-ui'; const w = c.measureText(R.tag).width + 10; c.fillStyle = 'rgba(8,16,28,.85)'; rrect(c, x - w / 2, y - 7, w, 14, 4); c.fill(); c.strokeStyle = R.col; c.lineWidth = 1.4; c.stroke(); c.fillStyle = R.col; c.textAlign = 'center'; c.fillText(R.tag, x, y + 3.5); if (u.hp < u.maxhp) { c.fillStyle = 'rgba(0,0,0,.7)'; c.fillRect(x - 15, y + 9, 30, 4); c.fillStyle = u.hp / u.maxhp > .4 ? '#6fcf6a' : '#e5483b'; c.fillRect(x - 14, y + 10, 28 * u.hp / u.maxhp, 2); } }
   for (const fl of RD.fl) { c.globalAlpha = Math.min(1, fl.t * 1.5); c.font = '800 13px system-ui'; c.fillStyle = fl.col; c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 3; c.strokeText(fl.txt, sx(fl.x), sy(fl.y)); c.fillText(fl.txt, sx(fl.x), sy(fl.y)); c.globalAlpha = 1; }
+  c.setTransform(rdDpr, 0, 0, rdDpr, 0, 0);
   // flash blanc / dégâts
   if (RD.flashT > 0) { c.fillStyle = `rgba(255,255,255,${RD.flashT / .35 * .85})`; c.fillRect(0, 0, rdW, rdH); }
   if (RD.hurt > 0) { const g = c.createRadialGradient(rdW / 2, rdH / 2, rdH * .3, rdW / 2, rdH / 2, rdH * .85); g.addColorStop(0, 'rgba(160,0,0,0)'); g.addColorStop(1, `rgba(190,10,10,${RD.hurt * 1.2})`); c.fillStyle = g; c.fillRect(0, 0, rdW, rdH); }
@@ -2723,12 +2736,13 @@ rdHelp.innerHTML = `<div class="box"><h2>COMMANDES DU RAID</h2><table>
 <tr><td>F · G · V · B</td><td>Flash · Grenade · Fumigène (puis clic pour lancer) · Trousse de soins (immédiat)</td></tr>
 <tr><td>Boutons de la carte</td><td>équipement de chacun · poste : suit le juge / tient la position / embuscade</td></tr>
 <tr><td>Z Q S D · W A S D · flèches</td><td>déplacer le juge directement</td></tr>
-<tr><td>Bord de l'écran · C</td><td>faire défiler la vue · recentrer</td></tr>
+<tr><td>Molette · + et - · bord de l'écran · C</td><td>zoom · zoom · faire défiler la vue · recentrer (et zoom normal)</td></tr>
 <tr><td>Espace · Entrée</td><td>flash rapide du juge · libérer / arrêter tout de suite</td></tr>
 <tr><td>Échap · P · M · H</td><td>pause (ou annuler un lancer) · pause · son · cette aide</td></tr>
-<tr><td>Tactile</td><td>toucher un équipier = le choisir · toucher le sol = déplacer · pouce gauche = bouger le juge</td></tr>
+<tr><td>Tactile</td><td>toucher un équipier = le choisir · toucher le sol = déplacer · pouce gauche = bouger le juge · pincer = zoom · deux doigts = faire défiler · bouton Centrer</td></tr>
 </table><p>Les équipiers tirent tout seuls. « Tient la position » : ils restent où vous les placez. « Embuscade » : ils ne tirent qu'à moins de 9 cases.</p><button class="big" id="rdHelpOk">FERMER</button></div>`;
-rdUi.appendChild(rdHelp); $('rdHelpOk').onclick = () => { rdHelp.style.display = 'none'; };
+rdUi.appendChild(rdHelp);
+const rdCenterB = document.createElement('button'); rdCenterB.id = 'rdCenter'; rdCenterB.textContent = 'Centrer'; rdCenterB.onclick = () => { RD.pan = { x: 0, y: 0 }; RD.zoom = 1; }; rdUi.appendChild(rdCenterB); $('rdHelpOk').onclick = () => { rdHelp.style.display = 'none'; };
 const rdHelpB = document.createElement('button'); rdHelpB.id = 'rdHelpB'; rdHelpB.textContent = 'Aide (H)'; rdHelpB.onclick = () => { rdHelp.style.display = 'flex'; }; rdUi.appendChild(rdHelpB);
 let briefRaid = null, prePause = false;
 function openBriefing(raid) { briefRaid = raid; prePause = opts.paused; opts.paused = true; refreshTop(); buildBrief(); rdBrief.style.display = 'flex'; }
