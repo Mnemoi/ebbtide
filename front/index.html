@@ -241,7 +241,7 @@ function decal(x, z, kind, r) {
 }
 function puff(x, y, z, k, size, life, vy, a) { if (fx.length < 600) fx.push({ x, y, z, k, size, life, t: 0, vy, vx: (R() - .5) * 1.5, vz: (R() - .5) * 1.5, a: a || 1, rot: R() * 6.283 }); }
 function explode(x, z, r, power) {
-  sfx.boom(r); game.shake = Math.min(14, game.shake + r * 1.3); decal(x, z, 'crater', r * .55);
+  sfx.boom(r); game.fl = Math.min(.16, (game.fl || 0) + r * .02); game.shake = Math.min(14, game.shake + r * 1.3); decal(x, z, 'crater', r * .55);
   puff(x, 1.5, z, 'fire1', r * 1.7, .8, 1.2); puff(x, 1.5, z, 'fire2', r * 1.3, .6, 2);
   for (let i = 0; i < 7; i++) puff(x + (R() - .5) * r * .6, 1 + i * r * .45, z + (R() - .5) * r * .6, i < 3 ? 'smk2' : 'smk1', r * (1.3 + i * .1), 3.5 + R() * 2.5, 3 + R() * 3, .9);
   for (let i = 0; i < 10; i++) puff(x + (R() - .5) * r * 2, .5, z + (R() - .5) * r * 2, 'dust', r * 1.4, 1.8 + R(), .6, .8);
@@ -273,7 +273,7 @@ function update(dt) {
     u.bi = u.rf != null ? -1 : bAt(u.x, u.z); if (u.rf != null) { const b = bld[u.rf]; u.cover = true; if (u.tx != null) { u.rf = null; } else { u.x = Math.max(b.x0 + 1, Math.min(b.x0 + b.w - 1, u.x)); u.z = Math.max(b.z0 + 1, Math.min(b.z0 + b.d - 1, u.z)); } } u.cover = u.tx == null && nearCover(u);
     fire(u, dt);
   }
-  for (let i = tracers.length - 1; i >= 0; i--) { tracers[i].t += dt; if (tracers[i].t > .16) tracers.splice(i, 1); }
+  for (let i = tracers.length - 1; i >= 0; i--) { tracers[i].t += dt; if (tracers[i].t > .07 && !tracers[i].imp) { tracers[i].imp = 1; puff(tracers[i].x1, .2, tracers[i].z1, 'dust', 1, .55, .7, .5); } if (tracers[i].t > .16) tracers.splice(i, 1); }
   for (let i = fx.length - 1; i >= 0; i--) { const p = fx[i]; p.t += dt; p.y += p.vy * dt; p.x += p.vx * dt; p.z += p.vz * dt; p.vy *= Math.pow(.6, dt); if (p.t > p.life) fx.splice(i, 1); }
   for (let i = shocks.length - 1; i >= 0; i--) { shocks[i].t += dt; if (shocks[i].t > .7) shocks.splice(i, 1); }
   for (let i = smokes.length - 1; i >= 0; i--) { const s = smokes[i]; s.t += dt; if (R() < dt * 5) puff(s.x + (R() - .5) * s.r, .6, s.z + (R() - .5) * s.r, 'smk1', s.r * 1.3, 5, .5, .9); if (s.t > 16) smokes.splice(i, 1); }
@@ -413,8 +413,21 @@ function inHull(h, x, y) { for (let i = 0; i < h.length; i++) { const a = h[i], 
 function pickBuilding(sx, sy) { let best = -1, bk = -1e9; bld.forEach((b, i) => { if (inHull(bHull(b), sx, sy)) { const k = b.x0 + b.w + b.z0 + b.d; if (k > bk) { bk = k; best = i; } } }); return best; }
 const NOISE = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'), d = x.createImageData(256, 256); for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - .5) * 200; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } x.putImageData(d, 0, 0); return c; })();
 let NPAT = null;
+const BLC = document.createElement('canvas'), BLX = BLC.getContext('2d'); const MOTES = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), s: .5 + Math.random() * 1.6, v: .004 + Math.random() * .012, a: .12 + Math.random() * .25 }));
+function lights() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalCompositeOperation = 'lighter';
+  const glow = (x, y, y_, z, r, c, a) => { const q = toS(x, y_, z), rr = r * cam.s, g = ctx.createRadialGradient(q[0], q[1], 0, q[0], q[1], rr); g.addColorStop(0, `rgba(${c},${a})`); g.addColorStop(1, `rgba(${c},0)`); ctx.fillStyle = g; ctx.fillRect(q[0] - rr, q[1] - rr, rr * 2, rr * 2); };
+  for (const u of units) if (u.flash > 0 && !u.dead) glow(0, 0, 1.2, 0, 0, '0,0,0', 0), glow(u.x, 0, 1.2, u.z, u.veh ? 7 : 3, '255,190,90', u.veh ? .3 : .22);
+  for (const p of fx) if (p.k.startsWith('fire') && p.t < p.life) glow(p.x, 0, p.y, p.z, p.size * 1.1, '255,140,50', .10 * (1 - p.t / p.life));
+  ctx.globalCompositeOperation = 'source-over';
+}
 function grade() {
-  const w = cv.width, h = cv.height; ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const w = cv.width, h = cv.height; lights(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const bw = Math.max(2, w >> 3), bh = Math.max(2, h >> 3); if (BLC.width !== bw) { BLC.width = bw; BLC.height = bh; } BLX.filter = 'brightness(.6) contrast(2.2) blur(2px)'; BLX.clearRect(0, 0, bw, bh); BLX.drawImage(cv, 0, 0, bw, bh); BLX.filter = 'none'; ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = .22; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(BLC, 0, 0, w, h); ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'lighter'; let sg = ctx.createLinearGradient(0, 0, w, h * .7); sg.addColorStop(0, 'rgba(255,225,170,.09)'); sg.addColorStop(.45, 'rgba(255,225,170,.02)'); sg.addColorStop(1, 'rgba(255,225,170,0)'); ctx.fillStyle = sg; ctx.fillRect(0, 0, w, h);
+  for (const m of MOTES) { m.x += m.v * .6; m.y += m.v * .25; if (m.x > 1) m.x = 0; if (m.y > 1) m.y = 0; ctx.fillStyle = `rgba(255,236,200,${m.a})`; ctx.beginPath(); ctx.arc(m.x * w, m.y * h, m.s * DPR, 0, 6.283); ctx.fill(); }
+  if (game.fl > .01) { ctx.fillStyle = `rgba(255,214,150,${game.fl})`; ctx.fillRect(0, 0, w, h); game.fl *= .88; }
+  ctx.globalCompositeOperation = 'source-over';
   ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = 'rgba(128,128,128,.24)'; ctx.fillRect(0, 0, w, h);
   ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = 'rgba(255,208,150,.30)'; ctx.fillRect(0, 0, w, h);
   ctx.globalCompositeOperation = 'overlay'; ctx.fillStyle = 'rgba(120,130,150,.10)'; ctx.fillRect(0, 0, w, h);
