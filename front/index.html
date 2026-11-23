@@ -490,7 +490,7 @@ function grade() {
   if (LOW.on) { const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .35, w / 2, h / 2, Math.hypot(w, h) * .62); g.addColorStop(0, 'rgba(18,10,4,0)'); g.addColorStop(1, 'rgba(18,10,4,.45)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); return; }
   const bw = Math.max(2, w >> 3), bh = Math.max(2, h >> 3); if (BLC.width !== bw) { BLC.width = bw; BLC.height = bh; } if (!MOB) { BLX.filter = 'brightness(.6) contrast(2.2) blur(2px)'; BLX.clearRect(0, 0, bw, bh); BLX.drawImage(cv, 0, 0, bw, bh); BLX.filter = 'none'; ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = .22; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(BLC, 0, 0, w, h); ctx.globalAlpha = 1; }
   ctx.globalCompositeOperation = 'lighter'; let sg = ctx.createLinearGradient(0, 0, w, h * .7); sg.addColorStop(0, 'rgba(255,225,170,.09)'); sg.addColorStop(.45, 'rgba(255,225,170,.02)'); sg.addColorStop(1, 'rgba(255,225,170,0)'); ctx.fillStyle = sg; ctx.fillRect(0, 0, w, h);
-  if (!MOB) for (const m of MOTES) { m.x += m.v * .6; m.y += m.v * .25; if (m.x > 1) m.x = 0; if (m.y > 1) m.y = 0; ctx.fillStyle = `rgba(255,236,200,${m.a})`; ctx.beginPath(); ctx.arc(m.x * w, m.y * h, m.s * DPR, 0, 6.283); ctx.fill(); }
+  if (false) for (const m of MOTES) { m.x += m.v * .6; m.y += m.v * .25; if (m.x > 1) m.x = 0; if (m.y > 1) m.y = 0; ctx.fillStyle = `rgba(255,236,200,${m.a})`; ctx.beginPath(); ctx.arc(m.x * w, m.y * h, m.s * DPR, 0, 6.283); ctx.fill(); }
   if (game.fl > .01) { ctx.fillStyle = `rgba(255,214,150,${game.fl})`; ctx.fillRect(0, 0, w, h); game.fl *= .88; }
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = 'rgba(128,128,128,.24)'; ctx.fillRect(0, 0, w, h);
@@ -499,7 +499,7 @@ function grade() {
   ctx.globalCompositeOperation = 'source-over'; let g = ctx.createLinearGradient(0, 0, 0, h * .5); g.addColorStop(0, 'rgba(214,196,160,.20)'); g.addColorStop(1, 'rgba(214,196,160,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h * .5);
   g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .35, w / 2, h / 2, Math.hypot(w, h) * .62); g.addColorStop(0, 'rgba(18,10,4,0)'); g.addColorStop(1, 'rgba(18,10,4,.5)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   if (!NPAT) NPAT = ctx.createPattern(NOISE, 'repeat'); NPAT.setTransform(new DOMMatrix([DPR, 0, 0, DPR, (Math.random() * 256) | 0, (Math.random() * 256) | 0]));
-  if (!MOB) { ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .13; ctx.fillStyle = NPAT; ctx.fillRect(0, 0, w, h); } ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  if (!MOB) { ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .05; ctx.fillStyle = NPAT; ctx.fillRect(0, 0, w, h); } ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
 }
 function drawHover() {
   if (game.armed || drag || pan) return; const bi = pickBuilding(mouse[0], mouse[1]); if (bi < 0) return; const b = bld[bi], h = bHull(b); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.strokeStyle = b.pin ? 'rgba(155,209,139,.85)' : 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5; ctx.setLineDash([7, 5]); ctx.beginPath(); h.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
